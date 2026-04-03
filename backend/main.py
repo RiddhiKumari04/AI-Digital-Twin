@@ -23,8 +23,10 @@ except ImportError:
     pass  # python-dotenv not installed — env vars must be set in system environment
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Request
+from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+import httpx
 import chromadb
 from motor.motor_asyncio import AsyncIOMotorClient
 from langchain_google_genai import GoogleGenerativeAI
@@ -33,6 +35,15 @@ from pydantic import BaseModel
 import google.generativeai as genai  # pyright: ignore[reportMissingImports]
 
 app = FastAPI()
+
+# --- CORS SETUP ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- DATABASE SETUP ---
 MONGO_URL = "mongodb://localhost:27017"
@@ -47,10 +58,203 @@ knowledge_col = chroma_client.get_or_create_collection(name="user_knowledge")
 chat_histories = {}
 
 # --- AI SETUP ---
-GEMINI_KEY = "AIzaSyDD0wS5aJyyZ24WVwlWzPmnJsr3nyhDlbE"
+GEMINI_KEY      = os.getenv("GEMINI_API_KEY", "").strip()
+OPENROUTER_KEY  = os.getenv("OPENROUTER_API_KEY", "").strip()
+GROQ_KEY        = os.getenv("GROQ_API_KEY", "").strip()
+HUGGINGFACE_KEY = os.getenv("HUGGINGFACE_API_KEY", "").strip()
+TOGETHER_KEY    = os.getenv("TOGETHER_API_KEY", "").strip()
+
 genai.configure(api_key=GEMINI_KEY)
 
 MODEL_NAME = "gemini-flash-latest"
+
+# OpenRouter free models to try in order (auto = best available free model)
+OPENROUTER_MODELS = [
+    "openrouter/auto",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "google/gemma-3-1b-it:free",
+    "microsoft/phi-3-mini-128k-instruct:free",
+]
+
+# Together AI model
+TOGETHER_MODEL = "meta-llama/Llama-3-8b-chat-hf"
+
+# Hugging Face model
+HUGGINGFACE_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+
+
+def _openrouter_generate(prompt: str, model: str = "openrouter/auto") -> str:
+    """Call OpenRouter API with specified model. Raises on error."""
+    import urllib.request as _ur
+    import json as _j
+    payload = _j.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024,
+        "temperature": 0.4,
+    }).encode("utf-8")
+    req = _ur.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_KEY}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8501",
+            "X-Title": "AI Digital Twin",
+        },
+        method="POST",
+    )
+    try:
+        with _ur.urlopen(req, timeout=30) as resp:
+            data = _j.loads(resp.read().decode())
+            text = data["choices"][0]["message"]["content"].strip()
+            if not text:
+                raise RuntimeError("Empty response from OpenRouter")
+            return text
+    except Exception as e:
+        raise RuntimeError(f"OpenRouter[{model}] error: {e}")
+
+
+def _groq_generate(prompt: str) -> str:
+    """Call Groq API (OpenAI-compatible). Raises on error."""
+    import urllib.request as _ur
+    import json as _j
+    payload = _j.dumps({
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024,
+        "temperature": 0.4,
+    }).encode("utf-8")
+    req = _ur.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {GROQ_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with _ur.urlopen(req, timeout=20) as resp:
+            data = _j.loads(resp.read().decode())
+            text = data["choices"][0]["message"]["content"].strip()
+            if not text: raise RuntimeError("Empty response from Groq")
+            return text
+    except Exception as e:
+        raise RuntimeError(f"Groq error: {e}")
+
+
+def _together_generate(prompt: str) -> str:
+    """Call Together AI API (OpenAI-compatible). Raises on error."""
+    import urllib.request as _ur
+    import json as _j
+    payload = _j.dumps({
+        "model": TOGETHER_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024,
+        "temperature": 0.4,
+    }).encode("utf-8")
+    req = _ur.Request(
+        "https://api.together.xyz/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {TOGETHER_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with _ur.urlopen(req, timeout=30) as resp:
+            data = _j.loads(resp.read().decode())
+            text = data["choices"][0]["message"]["content"].strip()
+            if not text:
+                raise RuntimeError("Empty response from Together AI")
+            return text
+    except Exception as e:
+        raise RuntimeError(f"Together AI error: {e}")
+
+
+def _huggingface_generate(prompt: str) -> str:
+    """Call Hugging Face Inference API. Raises on error."""
+    import urllib.request as _ur
+    import json as _j
+    payload = _j.dumps({
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024,
+        "temperature": 0.4,
+    }).encode("utf-8")
+    req = _ur.Request(
+        f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {HUGGINGFACE_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with _ur.urlopen(req, timeout=30) as resp:
+            data = _j.loads(resp.read().decode())
+            text = data["choices"][0]["message"]["content"].strip()
+            if not text:
+                raise RuntimeError("Empty response from Hugging Face")
+            return text
+    except Exception as e:
+        raise RuntimeError(f"Hugging Face error: {e}")
+
+
+def generate_ai_response(prompt: str) -> str:
+    """
+    Generate an AI response with automatic fallback:
+      1. Gemini          (priority 1)
+      2. OpenRouter/auto (priority 2)
+      3. Groq            (priority 3)
+      4. Hugging Face    (priority 4)
+      5. Together AI     (priority 5)
+    Never shows an absolute error unless all 5 providers fail.
+    """
+    # ── 1. Try Gemini ──────────────────────────────────
+    try:
+        genai.configure(api_key=GEMINI_KEY)
+        gem_model = genai.GenerativeModel("gemini-1.5-flash") # Use flash for speed
+        response = gem_model.generate_content(prompt)
+        print("[AI] ✓ Gemini responded")
+        return response.text
+    except Exception as e:
+        print(f"[AI] Gemini failed ({e}), trying OpenRouter...")
+
+    # ── 2. Try OpenRouter ───────────────────────
+    try:
+        result = _openrouter_generate(prompt, model="openrouter/auto")
+        print("[AI] ✓ OpenRouter responded")
+        return result
+    except Exception as e:
+        print(f"[AI] OpenRouter failed ({e}), trying Groq...")
+
+    # ── 3. Try Groq ──────────────────────────
+    try:
+        result = _groq_generate(prompt)
+        print("[AI] ✓ Groq responded")
+        return result
+    except Exception as e:
+        print(f"[AI] Groq failed ({e}), trying Hugging Face...")
+
+    # ── 4. Try Hugging Face ──────────────────────────
+    try:
+        result = _huggingface_generate(prompt)
+        print("[AI] ✓ Hugging Face responded")
+        return result
+    except Exception as e:
+        print(f"[AI] Hugging Face failed ({e}), trying Together AI...")
+
+    # ── 5. Try Together AI ──────────────────────────
+    try:
+        result = _together_generate(prompt)
+        print("[AI] ✓ Together AI responded")
+        return result
+    except Exception as e:
+        print(f"[AI] Together AI also failed ({e})")
+        raise RuntimeError("All 5 AI providers are offline or at capacity. Please try again later.")
 
 
 def _looks_like_realtime_request(text: str) -> bool:
@@ -88,12 +292,13 @@ def web_search_snippets(query: str, max_results: int = 5) -> str:
     return "\n".join(results)
 
 
-llm = GoogleGenerativeAI(
-    model=MODEL_NAME,
-    google_api_key=GEMINI_KEY,
-    max_output_tokens=512,
-    temperature=0.4,
-)
+# llm: uses the full fallback chain (Groq → Gemini → OpenRouter)
+class _FallbackLLM:
+    """Drop-in replacement for LangChain LLM — uses the full fallback chain."""
+    def invoke(self, prompt: str) -> str:
+        return generate_ai_response(prompt)
+
+llm = _FallbackLLM()
 
 RAG_TEMPLATE = (
     "You are the AI Digital Twin of {user_id}. Personality Mode: {mood}\n"
@@ -511,6 +716,12 @@ SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER     = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "").strip()
 
+# --- GOOGLE OAUTH CONFIG ---
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback").strip()
+STREAMLIT_URL = os.getenv("STREAMLIT_URL", "http://localhost:8501").strip()
+
 
 def _hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -676,6 +887,7 @@ async def register(user: UserRegister):
         raise HTTPException(status_code=409, detail="Email already registered.")
     doc = user.dict()
     doc["password"] = _hash_password(doc["password"])
+    doc["is_first_login"] = True
     await users_collection.insert_one(doc)
     return {"status": "success"}
 
@@ -698,7 +910,12 @@ async def login(email: str, password: str):
             )
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
-    return {"status": "success", "name": user["name"]}
+        
+    is_first_login = user.get("is_first_login", False)
+    if is_first_login:
+        await users_collection.update_one({"email": email}, {"$set": {"is_first_login": False}})
+
+    return {"status": "success", "name": user["name"], "is_first_login": is_first_login}
 
 
 @app.post("/forgot_password/send_otp")
@@ -753,6 +970,28 @@ async def forgot_password_reset(req: ResetPasswordRequest):
     return {"status": "success", "message": "Password reset successfully. You can now log in."}
 
 
+
+# ── PROFILE PHOTO ENDPOINTS ────────────────────────────────────────────────
+@app.post("/profile/save_photo")
+async def save_profile_photo(data: dict):
+    user_id = data.get("user_id")
+    pic_b64 = data.get("pic_b64")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    await users_collection.update_one(
+        {"email": user_id},
+        {"$set": {"pic_b64": pic_b64}}
+    )
+    return {"status": "success"}
+
+@app.get("/profile/get_photo")
+async def get_profile_photo(user_id: str):
+    user = await users_collection.find_one({"email": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"pic_b64": user.get("pic_b64")}
+
+
 # ── LOGIN VIA OTP ─────────────────────────────────────────────────────────────
 # Separate OTP store for login (so it doesn't clash with forgot-password OTPs)
 _login_otp_store: dict = {}
@@ -788,7 +1027,88 @@ async def login_otp_verify(email: str, otp: str):
     user = await users_collection.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=404, detail="Account not found.")
-    return {"status": "success", "name": user["name"]}
+        
+    is_first_login = user.get("is_first_login", False)
+    if is_first_login:
+        await users_collection.update_one({"email": email}, {"$set": {"is_first_login": False}})
+
+    return {"status": "success", "name": user["name"], "is_first_login": is_first_login}
+
+# ── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
+
+@app.get("/auth/google/start")
+async def google_auth_start():
+    """Returns the Google Authorization URL."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google Client ID not configured.")
+    
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account"
+    }
+    url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
+    return {"url": url}
+
+@app.get("/auth/google/callback")
+async def google_auth_callback(code: str):
+    """Handles callback from Google, exchanges code for token, and fetches profile."""
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code.")
+
+    # 1. Exchange code for access token
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+    
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(token_url, data=data)
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch token: {token_resp.text}")
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+
+        # 2. Fetch user profile from Google
+        profile_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        profile_resp = await client.get(profile_url, headers={"Authorization": f"Bearer {access_token}"})
+        if profile_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch profile.")
+        profile = profile_resp.json()
+
+    email = profile.get("email")
+    name = profile.get("name")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="No email provided by Google.")
+
+    # 3. Create or Update user in MongoDB
+    user = await users_collection.find_one({"email": email})
+    if not user:
+        # Create user with a dummy password since it's an OAuth user
+        await users_collection.insert_one({
+            "email": email,
+            "name": name or email,
+            "password": _hash_password(f"google_oauth_{random.randint(0, 999999)}")
+        })
+    
+    # 4. Redirect to Streamlit with auth params
+    # We use query params to pass login state back to Streamlit
+    # IMPORTANT: In a production app, use a secure session or JWT token instead!
+    final_params = {
+        "_act": "google_login",
+        "_email": email,
+        "_name": name or email
+    }
+    redirect_url = f"{STREAMLIT_URL}/?{urllib.parse.urlencode(final_params)}"
+    return RedirectResponse(url=redirect_url)
 
 
 @app.get("/recommend_gift")
@@ -801,7 +1121,6 @@ async def recommend_gift(user_id: str, person_name: str, mood: str):
         if results["documents"]
         else f"No specific memories of {person_name}."
     )
-    gift_model = genai.GenerativeModel(MODEL_NAME)
     search_block = web_search_snippets(
         f"best gift ideas for {person_name} price India", max_results=5
     )
@@ -813,8 +1132,8 @@ async def recommend_gift(user_id: str, person_name: str, mood: str):
         f"WEB RESULTS:\n{search_block if search_block else 'No web results available.'}\n"
     )
     try:
-        response = gift_model.generate_content(prompt)
-        return {"answer": response.text}
+        answer = generate_ai_response(prompt)
+        return {"answer": answer}
     except Exception as e:
         return {"answer": f"Gift Agent Error: {str(e)}"}
 
@@ -834,7 +1153,6 @@ async def analyze_image(
         if results["documents"]
         else "No specific personal preference found."
     )
-    vision_model = genai.GenerativeModel(MODEL_NAME)
     image_parts = []
     for f in files:
         image_data = await f.read()
@@ -851,8 +1169,14 @@ async def analyze_image(
         prompt += f"\n\nWEB RESULTS:\n{search_block if search_block else 'No web results available.'}\n"
 
     try:
-        response = vision_model.generate_content([prompt] + image_parts)
-        answer = response.text
+        # Vision: try Gemini first (it supports images), fallback to text-only for others
+        try:
+            genai.configure(api_key=GEMINI_KEY)
+            vision_model = genai.GenerativeModel(MODEL_NAME)
+            response = vision_model.generate_content([prompt] + image_parts)
+            answer = response.text
+        except Exception:
+            answer = generate_ai_response(prompt)  # fallback: text-only
         if user_id not in chat_histories:
             chat_histories[user_id] = []
         chat_histories[user_id].extend(
@@ -866,12 +1190,11 @@ async def analyze_image(
 @app.get("/ask")
 async def ask_twin(user_id: str, question: str, mood: str = "Natural"):
     results = knowledge_col.query(
-        query_texts=[question], n_results=5, where={"user": user_id}
+        query_texts=[question], n_results=3, where={"user": user_id}
     )
     context = "\n".join(results["documents"][0]) if results["documents"] else ""
-    history_text = "\n".join(chat_histories.get(user_id, [])[-5:])
-    chat_model = genai.GenerativeModel(MODEL_NAME)
-
+    # Keep only the last 3 exchanges (6 lines) for speed
+    history_text = "\n".join(chat_histories.get(user_id, [])[-6:])
     try:
         prompt = (
             f"You are the AI Digital Twin of {user_id}. Personality Mode: {mood}\n"
@@ -880,12 +1203,11 @@ async def ask_twin(user_id: str, question: str, mood: str = "Natural"):
             f"User Question:\n{question}\n\n"
         )
         if _looks_like_realtime_request(question):
-            search_block = web_search_snippets(question, max_results=6)
+            search_block = web_search_snippets(question, max_results=4)
             prompt += f"WEB RESULTS:\n{search_block if search_block else 'No web results available.'}\n\n"
         prompt += "Answer:"
 
-        response = chat_model.generate_content(prompt)
-        answer = response.text
+        answer = generate_ai_response(prompt)
 
         if user_id not in chat_histories:
             chat_histories[user_id] = []
@@ -893,6 +1215,78 @@ async def ask_twin(user_id: str, question: str, mood: str = "Natural"):
         return {"answer": answer}
     except Exception as e:
         return {"answer": f"AI Error: {str(e)}"}
+
+
+@app.get("/ask_stream")
+async def ask_twin_stream(user_id: str, question: str, mood: str = "Natural"):
+    """
+    Streaming version of /ask — returns Server-Sent Events (text/event-stream).
+    Each chunk is sent as: data: <token>\n\n
+    Final chunk is:         data: [DONE]\n\n
+    """
+    results = knowledge_col.query(
+        query_texts=[question], n_results=3, where={"user": user_id}
+    )
+    context = "\n".join(results["documents"][0]) if results["documents"] else ""
+    history_text = "\n".join(chat_histories.get(user_id, [])[-6:])
+    prompt = (
+        f"You are the AI Digital Twin of {user_id}. Personality Mode: {mood}\n"
+        f"Context:\n{context}\n\n"
+        f"Conversation History:\n{history_text}\n\n"
+        f"User Question:\n{question}\n\n"
+    )
+    if _looks_like_realtime_request(question):
+        search_block = web_search_snippets(question, max_results=4)
+        prompt += f"WEB RESULTS:\n{search_block if search_block else 'No web results available.'}\n\n"
+    prompt += "Answer:"
+
+    import asyncio
+
+    async def event_generator():
+        full_answer = ""
+        try:
+            # Try Gemini streaming first; fall back to non-streaming via fallback chain
+            try:
+                genai.configure(api_key=GEMINI_KEY)
+                chat_model = genai.GenerativeModel(MODEL_NAME)
+                response = chat_model.generate_content(prompt, stream=True)
+                for chunk in response:
+                    chunk_text = getattr(chunk, "text", "") or ""
+                    if chunk_text:
+                        full_answer += chunk_text
+                        # Cinematic: split chunk into words with intentional delays
+                        for word in chunk_text.split(" "):
+                            if word:
+                                safe = (word + " ").replace("\n", "\\n")
+                                yield f"data: {safe}\n\n"
+                                await asyncio.sleep(0.025) # Smooth speed
+                            else:
+                                yield "data:  \n\n"
+                                await asyncio.sleep(0.01)
+            except Exception:
+                # Fallback: get full answer from fallback chain, stream word-by-word
+                full_answer = generate_ai_response(prompt)
+                for word in full_answer.split(" "):
+                    safe = (word + " ").replace("\n", "\\n")
+                    yield f"data: {safe}\n\n"
+                    await asyncio.sleep(0.03) # Slightly slower for fallbacks
+        except Exception as e:
+            yield f"data: AI Error: {str(e)}\n\n"
+        finally:
+            if full_answer:
+                if user_id not in chat_histories:
+                    chat_histories[user_id] = []
+                chat_histories[user_id].extend([f"User: {question}", f"Twin: {full_answer}"])
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # --- STYLE MIRROR: VISUAL FASHION GRADING ---
@@ -916,7 +1310,6 @@ async def style_mirror(
         if style_results["documents"] and style_results["documents"][0]
         else "No personal style preferences found in memory."
     )
-    vision_model = genai.GenerativeModel(MODEL_NAME)
     image_parts = []
     for f in files:
         image_data = await f.read()
@@ -945,8 +1338,14 @@ async def style_mirror(
         "If no style profile exists, base the score purely on general fashion principles for the occasion."
     )
     try:
-        response = vision_model.generate_content([prompt] + image_parts)
-        answer = response.text
+        # Vision: Gemini preferred (image support), fallback to text-only
+        try:
+            genai.configure(api_key=GEMINI_KEY)
+            vision_model = genai.GenerativeModel(MODEL_NAME)
+            response = vision_model.generate_content([prompt] + image_parts)
+            answer = response.text
+        except Exception:
+            answer = generate_ai_response(prompt)  # text-only fallback
         if user_id not in chat_histories:
             chat_histories[user_id] = []
         chat_histories[user_id].extend(
@@ -1053,9 +1452,7 @@ async def debug_code(req: DebugCodeRequest):
             f"  STDERR:\n{eo['stderr'] or '(none)'}\n"
         )
 
-    # ── 7. CALL GEMINI ────────────────────────────────────────────
-    chat_model = genai.GenerativeModel(MODEL_NAME)
-
+    # ── 7. CALL AI (with fallback chain) ─────────────────────────
     prompt = (
         f"You are the AI Digital Twin and Shadow Developer of {req.user_id}. "
         f"Personality Mode: {req.mood}\n\n"
@@ -1079,7 +1476,7 @@ async def debug_code(req: DebugCodeRequest):
     )
 
     try:
-        ai_response = chat_model.generate_content(prompt).text
+        ai_response = generate_ai_response(prompt)
         response_payload["ai_analysis"] = ai_response
 
         # ── 8. EXTRACT FIXED CODE + GENERATE DIFF ────────────────
@@ -1120,6 +1517,90 @@ async def debug_code(req: DebugCodeRequest):
 
 
 # ─────────────────────────────────────────────
+# REPO FILES — GIT REPO EXPLORER ENDPOINT
+# ─────────────────────────────────────────────
+
+@app.get("/repo_files")
+async def get_repo_files(
+    repo_path: str,
+    extensions: Optional[str] = None,
+    max_files: int = 25,
+):
+    """
+    Browse a local git repo or clone a GitHub URL and return file contents.
+    Query params:
+      - repo_path: local path OR a https://github.com/... URL
+      - extensions: comma-separated list e.g. '.py,.js,.ts'  (optional)
+      - max_files: max number of files to return (default 25)
+    """
+    ext_list: Optional[List[str]] = None
+    if extensions:
+        ext_list = [e.strip() for e in extensions.split(",") if e.strip()]
+
+    # ── Handle GitHub URLs ────────────────────────────────────────────────────
+    tmp_dir = None
+    actual_path = repo_path.strip()
+
+    is_github_url = actual_path.startswith("https://github.com/") or actual_path.startswith("http://github.com/")
+
+    if is_github_url:
+        # Ensure URL ends without trailing slash and has no extra fragments
+        clone_url = actual_path.rstrip("/")
+        if not clone_url.endswith(".git"):
+            clone_url = clone_url + ".git"
+
+        tmp_dir = tempfile.mkdtemp(prefix="adt_repo_")
+        try:
+            result = subprocess.run(
+                ["git", "clone", "--depth=1", clone_url, tmp_dir],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                # Clean up temp dir
+                import shutil
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                err_msg = result.stderr.strip() or "git clone failed"
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Could not clone GitHub repo: {err_msg}",
+                )
+            actual_path = tmp_dir
+        except subprocess.TimeoutExpired:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise HTTPException(status_code=408, detail="git clone timed out (60s). Try a smaller repo.")
+        except FileNotFoundError:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=500,
+                detail="'git' command not found on server. Please install git or provide a local path.",
+            )
+
+    try:
+        data = read_git_repo_files(actual_path, extensions=ext_list, max_files=max_files)
+    finally:
+        # Clean up cloned temp dir if we created one
+        if tmp_dir:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    if data["errors"] and not data["files"]:
+        raise HTTPException(status_code=404, detail="; ".join(data["errors"]))
+
+    return {
+        "files": data["files"],
+        "errors": data["errors"],
+        "truncated": data["truncated"],
+        "is_git_repo": data.get("is_git_repo", False),
+        "total_files": data.get("total_files_found", len(data["files"])),
+        "source": "github" if is_github_url else "local",
+    }
+
+
+# ─────────────────────────────────────────────
 # TWIN NEWSROOM — PERSONALIZED MORNING BRIEFING
 # ─────────────────────────────────────────────
 
@@ -1137,6 +1618,14 @@ def _build_news_search_queries(
 ) -> List[str]:
     """Build a diverse set of search queries from user context."""
     queries = []
+
+    # If the user provided extra topics, they want the briefing to stay focused on them.
+    if extra_topics:
+        for topic in extra_topics:
+            queries.append(f"{topic} news today")
+        for loc in locations:
+            queries.append(f"{loc} latest news today")
+        return queries
 
     # Tech stack news
     for tech in tech_stack[:4]:
@@ -1217,21 +1706,22 @@ async def morning_briefing(req: NewsroomRequest):
 
     # ── 2. EXTRACT TECH STACK FROM MEMORY VIA QUICK LLM CALL ─────
     tech_stack: List[str] = []
-    if memory_context:
-        try:
-            extract_prompt = (
-                "From the following personal memory, extract a list of up to 6 specific "
-                "technologies, frameworks, or programming languages the person uses. "
-                "Return ONLY a comma-separated list, nothing else.\n\n"
-                f"MEMORY:\n{memory_context}"
-            )
-            raw_tech = llm.invoke(extract_prompt).strip()
-            tech_stack = [t.strip() for t in raw_tech.split(",") if t.strip()][:6]
-        except Exception:
-            pass
+    if not req.extra_topics: # Only extract from memory if no specific topics provided
+        if memory_context:
+            try:
+                extract_prompt = (
+                    "From the following personal memory, extract a list of up to 6 specific "
+                    "technologies, frameworks, or programming languages the person uses. "
+                    "Return ONLY a comma-separated list, nothing else.\n\n"
+                    f"MEMORY:\n{memory_context}"
+                )
+                raw_tech = llm.invoke(extract_prompt).strip()
+                tech_stack = [t.strip() for t in raw_tech.split(",") if t.strip()][:6]
+            except Exception:
+                pass
 
-    # Fall back to sensible defaults if memory is empty
-    if not tech_stack:
+    # Fall back to sensible defaults ONLY if memory is empty AND no extra topics provided
+    if not tech_stack and not req.extra_topics:
         tech_stack = ["Python", "FastAPI", "AI", "Machine Learning"]
 
     # ── 3. FETCH LIVE NEWS ────────────────────────────────────────
@@ -1281,7 +1771,6 @@ async def morning_briefing(req: NewsroomRequest):
     from datetime import datetime
     today = datetime.now().strftime("%A, %B %d %Y")
 
-    chat_model = genai.GenerativeModel(MODEL_NAME)
     prompt = (
         f"You are the AI Digital Twin of {req.user_id}. Today is {today}.\n"
         f"Personality Mode: {req.mood}\n\n"
@@ -1313,8 +1802,7 @@ async def morning_briefing(req: NewsroomRequest):
     )
 
     try:
-        response = chat_model.generate_content(prompt)
-        briefing = response.text
+        briefing = generate_ai_response(prompt)
 
         # ── 7. LOG TO CHAT HISTORY ────────────────────────────────
         if req.user_id not in chat_histories:
@@ -1341,30 +1829,7 @@ async def morning_briefing(req: NewsroomRequest):
         }
 
 
-# ── GIT REPO EXPLORER (standalone endpoint) ──────────────────────────────────
-@app.get("/repo_files")
-async def repo_files(
-    repo_path: str,
-    extensions: Optional[str] = None,   # comma-separated e.g. ".py,.js"
-    max_files: int = 20,
-):
-    """
-    Browse a local git repo and return its file tree + content.
-    extensions: comma-separated list, e.g. '.py,.js'  (default: all code files)
-    """
-    ext_list = None
-    if extensions:
-        ext_list = [e.strip() for e in extensions.split(",") if e.strip()]
-
-    data = read_git_repo_files(repo_path, extensions=ext_list, max_files=max_files)
-    return {
-        "repo_path": repo_path,
-        "is_git_repo": data.get("is_git_repo", False),
-        "total_files": data["total_files_found"],
-        "truncated": data["truncated"],
-        "files": {k: v[:500] + "..." if len(v) > 500 else v for k, v in data["files"].items()},
-        "errors": data["errors"],
-    }
+# NOTE: /repo_files endpoint is defined earlier with full GitHub URL support.
 
 
 # ─── PERSISTENT CHAT SESSIONS ──────────────────────────────────────────────
@@ -1399,10 +1864,10 @@ async def save_chat_session(data: dict):
 
 @app.get("/chat/sessions")
 async def get_chat_sessions(user_id: str):
-    """List all chat sessions for a user, newest first."""
+    """List all chat sessions for a user, newest first — metadata only (no messages)."""
     cursor = chat_sessions_col.find(
         {"user_id": user_id},
-        {"_id": 0, "session_id": 1, "title": 1, "updated_at": 1, "messages": 1}
+        {"_id": 0, "session_id": 1, "title": 1, "updated_at": 1, "message_count": 1}
     ).sort("updated_at", -1).limit(50)
     sessions = await cursor.to_list(length=50)
     return {"sessions": sessions}

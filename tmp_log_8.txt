@@ -1,0 +1,2444 @@
+﻿commit 553f579bd018d88514b6e896726999e923fca540
+Author: nirmitprasad <nirmitprasad@gmail.com>
+Date:   Wed Mar 18 18:03:01 2026 +0530
+
+    first commit
+
+diff --git a/frontend/app.py b/frontend/app.py
+new file mode 100644
+index 0000000..84e40c4
+--- /dev/null
++++ b/frontend/app.py
+@@ -0,0 +1,2431 @@
++import streamlit as st
++import requests
++import streamlit.components.v1 as components
++from streamlit_mic_recorder import speech_to_text
++
++# pandas and plotly are imported lazily inside tabs so the login page loads instantly
++
++st.set_page_config(page_title="AI Digital Twin Pro", layout="wide", initial_sidebar_state="expanded")
++
++# ΓöÇΓöÇ THEME ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++if "theme" not in st.session_state:
++    st.session_state.theme = "dark"
++
++_is_dark = st.session_state.theme == "dark"
++_bg      = "#0f172a"   if _is_dark else "#f0f4f8"
++_bg2     = "#0d1829"   if _is_dark else "#e2eaf3"
++_text    = "#e2e8f0"   if _is_dark else "#1e293b"
++_subtext = "#94a3b8"   if _is_dark else "#475569"
++_border  = "rgba(56,189,248,0.15)" if _is_dark else "rgba(2,132,199,0.2)"
++_card    = "rgba(255,255,255,0.04)" if _is_dark else "rgba(255,255,255,0.85)"
++
++# Modern Styling
++st.markdown(f"""
++    <style>
++    /* ΓöÇΓöÇ DYNAMIC THEME ΓöÇΓöÇ */
++    .stApp {{ background: {_bg} !important; color: {_text}; }}
++    [data-testid="stSidebar"] {{ background: {_bg2} !important; border-right: 1px solid {_border} !important; }}
++    .block-container {{ background: transparent !important; }}
++    /* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
++       GLOBAL BASE
++    ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
++    .stApp {{ background: #0f172a; color: white; }}
++
++    /* Remove Streamlit top padding ΓÇö kills the blank box */
++    .block-container {{
++        padding-top: 0rem !important;
++        padding-bottom: 1rem !important;
++        max-width: 100% !important;
++        padding-left: 3rem !important;
++        padding-right: 3rem !important;
++    }}
++
++    /* ΓöÇΓöÇ HIDE DEPLOY BUTTON + BLACK TOP BAR ΓöÇΓöÇ */
++    [data-testid="stToolbar"] {{ display: none !important; }}
++    [data-testid="stDecoration"] {{ display: none !important; }}
++    #MainMenu {{ display: none !important; }}
++    .stAppToolbar {{ display: none !important; }}
++    [data-testid="stToolbarActions"] {{ display: none !important; }}
++    /* Make header fully transparent ΓÇö removes the black empty box */
++    header[data-testid="stHeader"] {{
++        background: transparent !important;
++        background-color: transparent !important;
++        height: 0rem !important;
++        min-height: 0rem !important;
++    }}
++
++    /* ΓöÇΓöÇ SIDEBAR NATIVE ARROW ΓÇö always visible, functional, styled ΓöÇΓöÇ */
++    [data-testid="collapsedControl"] {{
++        display: flex !important;
++        visibility: visible !important;
++        opacity: 1 !important;
++        z-index: 99999 !important;
++        background: #1e3a5f !important;
++        border: 1.5px solid #38bdf8 !important;
++        border-left: none !important;
++        border-radius: 0 8px 8px 0 !important;
++        box-shadow: 2px 0 10px rgba(56,189,248,0.25) !important;
++    }}
++    [data-testid="collapsedControl"] svg {{
++        fill: #38bdf8 !important;
++        color: #38bdf8 !important;
++    }}
++
++    /* ΓöÇΓöÇ SIDEBAR ΓÇö force fully visible, never hidden ΓöÇΓöÇ */
++    [data-testid="stSidebar"] {{
++        background: #0d1829 !important;
++        border-right: 1px solid rgba(56,189,248,0.15) !important;
++        display: block !important;
++        visibility: visible !important;
++        opacity: 1 !important;
++        transform: none !important;
++        left: 0 !important;
++        position: relative !important;
++        min-width: 260px !important;
++        width: 260px !important;
++        max-width: 320px !important;
++    }}
++    [data-testid="stSidebar"] * {{
++        visibility: visible !important;
++    }}
++
++    /* ΓöÇΓöÇ PROFILE CARD ΓöÇΓöÇ */
++    .profile-card {{
++        display: flex; flex-direction: column; align-items: center;
++        padding: 18px 12px 14px 12px;
++        background: linear-gradient(160deg, rgba(14,165,233,0.1), rgba(99,102,241,0.07));
++        border-bottom: 1px solid rgba(56,189,248,0.15);
++        margin-bottom: 4px; position: relative;
++    }}
++    .profile-avatar-wrap {{
++        position: relative; width: 72px; height: 72px; margin-bottom: 10px;
++    }}
++    .profile-avatar {{
++        width: 72px; height: 72px; border-radius: 50%;
++        object-fit: cover;
++        border: 2.5px solid #38bdf8;
++        box-shadow: 0 0 16px rgba(56,189,248,0.35);
++    }}
++    .profile-avatar-default {{
++        width: 72px; height: 72px; border-radius: 50%;
++        background: linear-gradient(135deg, #1e3a5f, #0284c7);
++        border: 2.5px solid #38bdf8;
++        box-shadow: 0 0 16px rgba(56,189,248,0.3);
++        display: flex; align-items: center; justify-content: center;
++        font-size: 2rem;
++    }}
++    .profile-edit-btn {{
++        position: absolute; bottom: 0; right: 0;
++        width: 24px; height: 24px; border-radius: 50%;
++        background: #0284c7; border: 2px solid #0f172a;
++        display: flex; align-items: center; justify-content: center;
++        font-size: 0.7rem; cursor: pointer; line-height: 1;
++    }}
++    .profile-name {{
++        color: #e2e8f0 !important; font-size: 1rem !important;
++        font-weight: 700 !important; text-align: center;
++        line-height: 1.3; margin: 0 0 3px 0;
++    }}
++    .profile-badge {{
++        background: rgba(56,189,248,0.12);
++        color: #38bdf8; font-size: 0.7rem !important;
++        padding: 2px 10px; border-radius: 20px;
++        border: 1px solid rgba(56,189,248,0.25);
++        font-weight: 600;
++    }}
++
++    /* Global typography ΓÇö scoped to content only, NOT sidebar internals */
++    h1 {{ color: #38bdf8 !important; text-align: center; font-size: 3.2rem !important; font-weight: 900 !important; }}
++    /* auth-main-title overrides h1 for login page ΓÇö defined in login CSS block */
++    h2 {{ color: #e2e8f0 !important; font-size: 2rem !important; font-weight: 800 !important; }}
++    h3 {{ color: #e2e8f0 !important; font-size: 1.6rem !important; font-weight: 700 !important; }}
++
++    /* All labels ΓÇö bigger and bolder */
++    label,
++    .stTextInput label,
++    .stSelectbox label,
++    .stRadio label,
++    .stCheckbox label,
++    .stTextArea label {{ font-size: 1.1rem !important; font-weight: 600 !important; color: #cbd5e1 !important; }}
++
++    /* All buttons ΓÇö bigger */
++    .stButton > button {{
++        width: 100%; border-radius: 10px; height: 3.2em;
++        background: #0284c7; color: white;
++        font-weight: 700 !important; font-size: 1.05rem !important;
++    }}
++
++    /* Input fields ΓÇö bigger text */
++    .stTextInput > div > div > input,
++    .stTextArea textarea {{
++        font-size: 1.05rem !important;
++        padding: 12px 16px !important;
++    }}
++
++    .memory-item {{ background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px; border-left: 4px solid #38bdf8; font-size: 1rem !important;}}
++    .memory-card {{
++        background: linear-gradient(135deg, rgba(14,165,233,0.07), rgba(56,189,248,0.04));
++        border: 1px solid rgba(56,189,248,0.2);
++        border-left: 4px solid #38bdf8;
++        border-radius: 12px;
++        padding: 14px 18px;
++        margin-bottom: 10px;
++    }}
++    .memory-card-text {{
++        color: #e2e8f0; font-size: 1rem !important;
++        font-weight: 500; line-height: 1.5; margin-bottom: 8px;
++    }}
++    .memory-card-meta {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
++    .memory-badge {{
++        display: inline-flex; align-items: center; gap: 4px;
++        background: rgba(56,189,248,0.1); color: #7dd3fc;
++        font-size: 0.75rem !important; font-weight: 600;
++        padding: 3px 10px; border-radius: 20px;
++        border: 1px solid rgba(56,189,248,0.2);
++    }}
++    .memory-badge-cat {{
++        display: inline-flex; align-items: center; gap: 4px;
++        background: rgba(168,85,247,0.1); color: #c4b5fd;
++        font-size: 0.75rem !important; font-weight: 600;
++        padding: 3px 10px; border-radius: 20px;
++        border: 1px solid rgba(168,85,247,0.2);
++    }}
++    .memory-count-badge {{
++        display: inline-block; background: rgba(56,189,248,0.15);
++        color: #38bdf8; font-size: 0.82rem !important; font-weight: 700;
++        padding: 4px 14px; border-radius: 20px;
++        border: 1px solid rgba(56,189,248,0.3); margin-bottom: 14px;
++    }}
++
++    /* ΓöÇΓöÇ CONVERSATION TAB ΓÇö FULL REDESIGN ΓöÇΓöÇ */
++    .conv-welcome {{
++        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(99,102,241,0.1), rgba(168,85,247,0.08));
++        border: 1px solid rgba(56,189,248,0.22);
++        border-radius: 20px; padding: 14px 32px 14px 32px;
++        margin-bottom: 10px; text-align: center;
++        position: relative; overflow: hidden;
++    }}
++    .conv-welcome::before {{
++        content: ''; position: absolute; top: -40px; right: -40px;
++        width: 140px; height: 140px; border-radius: 50%;
++        background: radial-gradient(circle, rgba(56,189,248,0.12), transparent 70%);
++        pointer-events: none;
++    }}
++    .conv-welcome-emoji {{ font-size: 1.6rem; margin-bottom: 4px; display: block; }}
++    .conv-welcome h3 {{
++        color: #e2e8f0 !important; font-size: 1.1rem !important;
++        font-weight: 800 !important; margin: 0 0 4px 0 !important;
++    }}
++    .conv-welcome h3 span {{ color: #38bdf8; }}
++    .conv-welcome p {{ color: #64748b !important; font-size: 0.82rem !important; margin: 0 0 10px 0 !important; }}
++    .conv-chips {{
++        display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px;
++    }}
++    .conv-chip {{
++        background: rgba(15,23,42,0.6);
++        border: 1px solid rgba(56,189,248,0.2);
++        color: #94a3b8; border-radius: 30px;
++        padding: 6px 14px; font-size: 0.78rem !important; font-weight: 500;
++        display: inline-flex; align-items: center; gap: 5px;
++        cursor: default; backdrop-filter: blur(4px);
++        transition: border-color 0.2s, color 0.2s;
++    }}
++    .conv-chip:hover {{ border-color: #38bdf8; color: #e2e8f0; }}
++
++    /* Quick-action chip buttons */
++    div[data-testid="stButton"] button[kind="secondary"]:has(+ *),
++    .conv-chip-btn > div > button {{
++        background: rgba(15,23,42,0.7) !important;
++        border: 1px solid rgba(56,189,248,0.22) !important;
++        color: #94a3b8 !important;
++        border-radius: 30px !important;
++        font-size: 0.8rem !important;
++        font-weight: 500 !important;
++        padding: 6px 10px !important;
++        transition: all 0.18s !important;
++    }}
++    [data-testid="stHorizontalBlock"] [data-testid="stButton"] button {{
++        background: rgba(15,23,42,0.7) !important;
++        border: 1px solid rgba(56,189,248,0.2) !important;
++        color: #94a3b8 !important;
++        border-radius: 30px !important;
++        font-size: 0.8rem !important;
++        font-weight: 500 !important;
++    }}
++    [data-testid="stHorizontalBlock"] [data-testid="stButton"] button:hover {{
++        border-color: #38bdf8 !important;
++        color: #e2e8f0 !important;
++        background: rgba(56,189,248,0.1) !important;
++    }}
++
++    /* Compact action bar */
++    .conv-action-bar {{
++        display: flex; align-items: center; gap: 8px;
++        margin-bottom: 8px;
++    }}
++    .conv-pill-btn {{
++        display: inline-flex; align-items: center; gap: 5px;
++        background: rgba(15,23,42,0.8);
++        border: 1px solid rgba(56,189,248,0.2);
++        color: #7dd3fc; border-radius: 30px;
++        padding: 5px 14px; font-size: 0.78rem !important; font-weight: 600;
++        cursor: pointer; white-space: nowrap;
++        transition: all 0.18s;
++    }}
++    .conv-pill-btn:hover, .conv-pill-btn-on {{
++        background: rgba(56,189,248,0.15) !important;
++        border-color: #38bdf8 !important; color: #fff !important;
++    }}
++    .conv-upload-slim {{
++        background: rgba(14,165,233,0.05);
++        border: 1.5px dashed rgba(56,189,248,0.25);
++        border-radius: 10px; padding: 6px 14px 10px 14px;
++        margin-bottom: 6px;
++    }}
++    .conv-upload-slim-label {{
++        color: #38bdf8; font-size: 0.75rem !important;
++        font-weight: 700; letter-spacing: 0.5px;
++        margin-bottom: 4px; display: block;
++    }}
++
++    /* ΓöÇΓöÇ SESSION LIST PANEL ΓöÇΓöÇ */
++    .sess-panel {{
++        background: #0a1120;
++        border: 1px solid rgba(56,189,248,0.18);
++        border-radius: 14px; overflow: hidden;
++        margin-bottom: 16px;
++    }}
++    .sess-header {{
++        background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(56,189,248,0.06));
++        border-bottom: 1px solid rgba(56,189,248,0.15);
++        padding: 10px 16px;
++        display: flex; align-items: center; justify-content: space-between;
++    }}
++    .sess-title {{ color: #38bdf8; font-size: 0.88rem !important; font-weight: 700; }}
++    .sess-item {{
++        padding: 10px 16px;
++        border-bottom: 1px solid rgba(56,189,248,0.07);
++        cursor: pointer;
++        transition: background 0.15s;
++    }}
++    .sess-item:hover {{ background: rgba(56,189,248,0.07); }}
++    .sess-item-active {{ background: rgba(56,189,248,0.12) !important; border-left: 3px solid #38bdf8; }}
++    .sess-item-title {{ color: #e2e8f0; font-size: 0.85rem !important; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }}
++    .sess-item-meta  {{ color: #475569; font-size: 0.72rem !important; margin-top: 2px; }}
++
++    /* ΓöÇΓöÇ CHAT HISTORY PANEL ΓöÇΓöÇ */
++    .ch-panel {{
++        background: #0d1829;
++        border: 1px solid rgba(56,189,248,0.2);
++        border-radius: 16px;
++        padding: 0;
++        margin-bottom: 20px;
++        overflow: hidden;
++    }}
++    .ch-header {{
++        background: linear-gradient(135deg, rgba(14,165,233,0.15), rgba(56,189,248,0.08));
++        border-bottom: 1px solid rgba(56,189,248,0.2);
++        padding: 14px 20px;
++        display: flex; align-items: center; justify-content: space-between;
++    }}
++    .ch-header-title {{
++        color: #38bdf8; font-size: 1.05rem !important;
++        font-weight: 700; margin: 0;
++    }}
++    .ch-count {{
++        background: rgba(56,189,248,0.15); color: #7dd3fc;
++        font-size: 0.75rem !important; font-weight: 700;
++        padding: 3px 12px; border-radius: 20px;
++        border: 1px solid rgba(56,189,248,0.25);
++    }}
++    .ch-empty {{
++        padding: 32px 20px; text-align: center;
++        color: #475569; font-size: 0.95rem !important;
++    }}
++    .ch-msg-user {{
++        display: flex; justify-content: flex-end;
++        padding: 10px 16px 4px 60px;
++    }}
++    .ch-msg-assistant {{
++        display: flex; justify-content: flex-start;
++        padding: 10px 60px 4px 16px;
++    }}
++    .ch-bubble-user {{
++        background: linear-gradient(135deg, #0284c7, #0ea5e9);
++        color: white; border-radius: 16px 16px 4px 16px;
++        padding: 10px 16px; max-width: 100%;
++        font-size: 0.92rem !important; line-height: 1.5;
++        box-shadow: 0 2px 8px rgba(2,132,199,0.3);
++    }}
++    .ch-bubble-assistant {{
++        background: rgba(255,255,255,0.06);
++        border: 1px solid rgba(56,189,248,0.15);
++        color: #e2e8f0; border-radius: 16px 16px 16px 4px;
++        padding: 10px 16px; max-width: 100%;
++        font-size: 0.92rem !important; line-height: 1.5;
++    }}
++    .ch-meta {{
++        font-size: 0.7rem !important; color: #475569;
++        padding: 0 16px 6px 16px; text-align: right;
++    }}
++    .ch-meta-left {{
++        font-size: 0.7rem !important; color: #475569;
++        padding: 0 16px 6px 16px; text-align: left;
++    }}
++    .ch-divider {{
++        border: none; border-top: 1px solid rgba(56,189,248,0.08);
++        margin: 4px 16px;
++    }}
++
++    /* Style Mirror */
++    .mirror-header {{
++        background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.15));
++        border: 1px solid rgba(236,72,153,0.4);
++        border-radius: 16px; padding: 18px 24px; margin-bottom: 20px;
++    }}
++    .mirror-header h3 {{ color: #f472b6; margin: 0 0 6px 0; font-size: 1.1rem; }}
++    .mirror-header p  {{ color: #94a3b8; margin: 0; font-size: 0.85rem; }}
++    .score-badge {{
++        display: inline-block;
++        background: linear-gradient(135deg, #ec4899, #a855f7);
++        color: white; font-size: 2rem; font-weight: 900;
++        padding: 12px 28px; border-radius: 50px;
++        margin: 10px 0; letter-spacing: 1px;
++    }}
++    .mirror-result {{
++        background: rgba(236,72,153,0.06);
++        border: 1px solid rgba(236,72,153,0.3);
++        border-radius: 14px; padding: 20px 24px; margin-top: 14px;
++        border-left: 4px solid #ec4899; color: #fce7f3;
++    }}
++    .style-tip-card {{
++        background: rgba(168,85,247,0.07);
++        border: 1px solid rgba(168,85,247,0.25);
++        border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;
++        border-left: 4px solid #a855f7; font-size: 0.88em; color: #e9d5ff;
++    }}
++
++    /* Twin Newsroom */
++    .newsroom-header {{
++        background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(234,88,12,0.12));
++        border: 1px solid rgba(251,191,36,0.4);
++        border-radius: 16px; padding: 18px 24px; margin-bottom: 20px;
++    }}
++    .newsroom-header h3 {{ color: #fbbf24; margin: 0 0 6px 0; font-size: 1.1rem; }}
++    .newsroom-header p  {{ color: #94a3b8; margin: 0; font-size: 0.85rem; }}
++    .briefing-card {{
++        background: rgba(251,191,36,0.05);
++        border: 1px solid rgba(251,191,36,0.25);
++        border-radius: 14px; padding: 22px 26px; margin-top: 14px;
++        border-left: 4px solid #fbbf24; color: #fef3c7; line-height: 1.7;
++    }}
++    .news-meta-badge {{
++        display: inline-block; background: rgba(251,191,36,0.15);
++        color: #fbbf24; font-size: 0.78em; font-weight: 600;
++        padding: 3px 10px; border-radius: 20px;
++        border: 1px solid rgba(251,191,36,0.3); margin: 2px 3px;
++    }}
++    .tech-tag {{
++        display: inline-block; background: rgba(14,165,233,0.12);
++        color: #38bdf8; font-size: 0.78em; font-weight: 600;
++        padding: 3px 10px; border-radius: 20px;
++        border: 1px solid rgba(14,165,233,0.3); margin: 2px 3px;
++    }}
++
++    /* Shadow Developer enhanced */
++    .shadow-header {{
++        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15));
++        border: 1px solid rgba(99,102,241,0.4);
++        border-radius: 16px; padding: 18px 24px; margin-bottom: 20px;
++    }}
++    .shadow-header h3 {{ color: #a78bfa; margin: 0 0 6px 0; font-size: 1.1rem; }}
++    .shadow-header p  {{ color: #94a3b8; margin: 0; font-size: 0.85rem; }}
++    .code-style-card {{
++        background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.25);
++        border-radius: 12px; padding: 14px 18px; margin-bottom: 10px;
++        border-left: 4px solid #6366f1; font-size: 0.88em; color: #c4b5fd;
++    }}
++    .debug-result {{
++        background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.3);
++        border-radius: 12px; padding: 16px 20px; margin-top: 12px;
++        border-left: 4px solid #10b981; color: #d1fae5;
++    }}
++    .syntax-error-card {{
++        background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35);
++        border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
++        border-left: 4px solid #ef4444; font-size: 0.87em; color: #fecaca;
++    }}
++    .syntax-warn-card {{
++        background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.35);
++        border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
++        border-left: 4px solid #f59e0b; font-size: 0.87em; color: #fde68a;
++    }}
++    .exec-card {{
++        background: rgba(14,165,233,0.07); border: 1px solid rgba(14,165,233,0.3);
++        border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;
++        border-left: 4px solid #0ea5e9; font-size: 0.87em; color: #bae6fd;
++    }}
++    .diff-card {{
++        background: #0d1117; border: 1px solid rgba(99,102,241,0.3);
++        border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;
++        font-family: monospace; font-size: 0.82em; overflow-x: auto;
++        white-space: pre; color: #c9d1d9;
++    }}
++    .diff-add  {{ color: #3fb950; }}
++    .diff-rem  {{ color: #f85149; }}
++    .diff-meta {{ color: #8b949e; }}
++    .repo-card {{
++        background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.3);
++        border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
++        border-left: 4px solid #22c55e; font-size: 0.87em; color: #bbf7d0;
++    }}
++    </style>
++    """, unsafe_allow_html=True)
++
++
++def speak_text(text: str) -> None:
++    clean_text = (
++        text.replace("\\", "\\\\")
++        .replace('"', '\\"')
++        .replace("'", "\\'")
++        .replace("\n", "\\n")
++        .replace("\r", "")
++    )
++    js_code = f"""
++    <script>
++    window.speechSynthesis.cancel();
++    const msgText = "{clean_text}";
++    if (msgText.length > 0) {{{{
++        var msg = new SpeechSynthesisUtterance(msgText);
++        window.speechSynthesis.speak(msg);
++    }}}}
++    </script>
++    """
++    components.html(js_code, height=0)
++
++
++def stop_speech() -> None:
++    js_code = """<script>window.speechSynthesis.cancel();</script>"""
++    components.html(js_code, height=0)
++
++
++def mood_detector_component() -> None:
++    html_code = """
++    <!DOCTYPE html><html><head>
++    <style>
++      body { margin: 0; background: transparent; font-family: sans-serif; }
++      #container { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; }
++      video { width: 220px; height: 160px; border-radius: 12px; border: 2px solid #38bdf8; object-fit: cover; }
++      #status { font-size: 12px; color: #94a3b8; text-align: center; min-height: 18px; }
++      #moodBadge { font-size: 14px; font-weight: bold; color: #38bdf8;
++        background: rgba(56,189,248,0.1); padding: 4px 14px; border-radius: 20px; border: 1px solid #38bdf8; }
++    </style></head><body>
++    <div id="container">
++      <video id="video" autoplay muted playsinline></video>
++      <div id="moodBadge">≡ƒÿÉ Neutral</div>
++      <div id="status">Loading face models...</div>
++    </div>
++    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
++    <script>
++    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
++    const video = document.getElementById('video');
++    const status = document.getElementById('status');
++    const moodBadge = document.getElementById('moodBadge');
++    const EMOJI = { happy:'≡ƒÿè',sad:'≡ƒÿó',angry:'≡ƒÿá',disgusted:'≡ƒñó',fearful:'≡ƒÿ¿',surprised:'≡ƒÿ▓',neutral:'≡ƒÿÉ' };
++    function pushEmotionToStreamlit(emotion) {
++      try {
++        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
++        for (const inp of inputs) {
++          const label = inp.closest('[data-testid="stTextInput"]');
++          if (label && label.querySelector('label') && label.querySelector('label').textContent.includes('__mood_hidden__')) {
++            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
++            nativeInputValueSetter.call(inp, emotion);
++            inp.dispatchEvent(new Event('input',{bubbles:true}));
++            break;
++          }
++        }
++      } catch(e) {}
++    }
++    async function loadModels() {
++      try {
++        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
++        await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
++        status.textContent = 'Models ready Γ£ô Starting camera...';
++        await startCamera();
++      } catch(e) { status.textContent = 'Model load failed. Refresh to retry.'; }
++    }
++    async function startCamera() {
++      try {
++        const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
++        video.srcObject = stream;
++        video.addEventListener('loadedmetadata', () => { status.textContent = 'Mood detection active ≡ƒæü∩╕Å'; detectLoop(); });
++      } catch(e) { status.textContent = 'Camera denied or unavailable.'; }
++    }
++    async function detectLoop() {
++      try {
++        const result = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({inputSize:224})).withFaceExpressions();
++        if (result) {
++          const top = Object.entries(result.expressions).sort((a,b)=>b[1]-a[1])[0];
++          const emotion = top[0];
++          moodBadge.textContent = (EMOJI[emotion]||'≡ƒÿÉ')+' '+emotion.charAt(0).toUpperCase()+emotion.slice(1);
++          pushEmotionToStreamlit(emotion);
++        }
++      } catch(e) {}
++      setTimeout(detectLoop, 1500);
++    }
++    loadModels();
++    </script></body></html>
++    """
++    components.html(html_code, height=230)
++
++
++def render_diff_html(diff_text: str) -> str:
++    """Colour-code a unified diff for display."""
++    lines = diff_text.splitlines()
++    html_lines = []
++    for line in lines:
++        if line.startswith("+") and not line.startswith("+++"):
++            html_lines.append(f'<span class="diff-add">{line}</span>')
++        elif line.startswith("-") and not line.startswith("---"):
++            html_lines.append(f'<span class="diff-rem">{line}</span>')
++        elif line.startswith("@@") or line.startswith("---") or line.startswith("+++"):
++            html_lines.append(f'<span class="diff-meta">{line}</span>')
++        else:
++            html_lines.append(line)
++    return "\n".join(html_lines)
++
++
++# --- SESSION STATE INIT ---
++if "logged_in" not in st.session_state:
++    st.session_state.update({
++        "logged_in": False,
++        "email": "",
++        "name": "",
++        "chat_history": [],
++        "chat_timestamps": [],
++        "show_chat_history": False,
++        "chip_inject": None,
++        "goto_shadow": False,
++        "current_session_id": None,
++        "show_sessions_panel": False,
++        "profile_pic_b64": None,
++        "show_profile_edit": False,
++        "theme": "dark",
++        "language": "English",
++        "voice_enabled": True,
++        "last_answer": "",
++        "suppress_next_prompt": False,
++        "voice_input_key": 0,
++        "webcam_mood_enabled": False,
++        "detected_emotion": "neutral",
++        "style_mirror_history": [],
++    })
++
++EMOTION_TONE = {
++    "happy":     ("upbeat and enthusiastic",        "≡ƒÿè You look really happy today!"),
++    "sad":       ("warm, gentle and comforting",     "≡ƒÿó You seem a bit sad. I'm here for you."),
++    "angry":     ("calm, patient and de-escalating","≡ƒÿá You seem a bit tense. Take a breath ΓÇö I've got you."),
++    "disgusted": ("light, positive and distracting","≡ƒñó Something bugging you? Let me try to help."),
++    "fearful":   ("reassuring and confident",       "≡ƒÿ¿ You look a little worried. Don't stress ΓÇö I'll help."),
++    "surprised": ("energetic and curious",          "≡ƒÿ▓ You look surprised! Let's dig in together."),
++    "neutral":   ("natural and conversational",     ""),
++}
++
++twin_mood = "Natural"
++
++# ΓöÇΓöÇΓöÇ SIDEBAR ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++if st.session_state.logged_in:
++    with st.sidebar:
++        # ΓöÇΓöÇ PROFILE CARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        import base64 as _b64
++
++        full_name  = st.session_state.name or ""
++        first_name = full_name.split()[0] if full_name else "User"
++        last_name  = " ".join(full_name.split()[1:]) if len(full_name.split()) > 1 else ""
++
++        pic_b64 = st.session_state.get("profile_pic_b64")
++
++        if pic_b64:
++            avatar_html = f'<img class="profile-avatar" src="data:image/png;base64,{pic_b64}" />'
++        else:
++            initials = (first_name[0] + (last_name[0] if last_name else "")).upper()
++            avatar_html = f'<div class="profile-avatar-default">{initials}</div>'
++
++        st.markdown(f"""
++        <div class="profile-card">
++            <div class="profile-avatar-wrap">
++                {avatar_html}
++                <div class="profile-edit-btn" title="Edit photo">Γ£Å∩╕Å</div>
++            </div>
++            <div class="profile-name">{first_name}<br><span style="color:#94a3b8;font-weight:500">{last_name}</span></div>
++            <span class="profile-badge">Γ£¿ Digital Twin</span>
++        </div>
++        """, unsafe_allow_html=True)
++
++        # Photo upload ΓÇö shown inline below avatar
++        show_edit = st.session_state.get("show_profile_edit", False)
++        if st.button("≡ƒô╖ Change Photo" if not show_edit else "Γ£û Cancel", key="toggle_profile_edit", use_container_width=True):
++            st.session_state.show_profile_edit = not show_edit
++            st.rerun()
++
++        if st.session_state.get("show_profile_edit", False):
++            uploaded_pic = st.file_uploader("Upload profile photo", type=["jpg","jpeg","png"],
++                                            key="profile_uploader", label_visibility="collapsed")
++            if uploaded_pic:
++                raw = uploaded_pic.read()
++                st.session_state.profile_pic_b64 = _b64.b64encode(raw).decode()
++                st.session_state.show_profile_edit = False
++                st.rerun()
++            if st.session_state.get("profile_pic_b64"):
++                if st.button("≡ƒùæ∩╕Å Remove Photo", key="remove_photo", use_container_width=True):
++                    st.session_state.profile_pic_b64 = None
++                    st.session_state.show_profile_edit = False
++                    st.rerun()
++
++        st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
++        st.markdown("---")
++        st.subheader("≡ƒÄ¡ Mood Detector")
++        webcam_on = st.toggle(
++            "Enable Webcam Mood Detection",
++            value=st.session_state.get("webcam_mood_enabled", False),
++        )
++        st.session_state.webcam_mood_enabled = webcam_on
++
++        if webcam_on:
++            st.caption("≡ƒöÆ Fully private ΓÇö runs in your browser only, nothing is uploaded.")
++            detected_raw = st.text_input(
++                "__mood_hidden__",
++                value=st.session_state.get("detected_emotion", "neutral"),
++                label_visibility="hidden",
++                key="mood_input_field",
++            )
++            if detected_raw and detected_raw.strip() in EMOTION_TONE:
++                st.session_state.detected_emotion = detected_raw.strip()
++            mood_detector_component()
++            emotion = st.session_state.get("detected_emotion", "neutral")
++            tone_label, _ = EMOTION_TONE.get(emotion, EMOTION_TONE["neutral"])
++            if emotion and emotion != "neutral":
++                st.info(f"Detected: **{emotion.capitalize()}**  \nTwin tone: *{tone_label}*")
++            else:
++                st.caption("Waiting for face detection...")
++        else:
++            st.session_state.detected_emotion = "neutral"
++            st.caption("Turn on to let your twin react to your mood.")
++
++        st.markdown("---")
++        st.subheader("≡ƒÄü Social Memory")
++        target = st.text_input("Who is the gift for?", placeholder="e.g., My sister")
++        if st.button("≡ƒÄü Find Perfect Gift"):
++            if target:
++                with st.spinner(f"Scanned memories of {target}..."):
++                    res = requests.get(
++                        "http://127.0.0.1:8000/recommend_gift",
++                        params={"user_id": st.session_state.email, "person_name": target, "mood": "Natural"},
++                    )
++                    try:
++                        gift_ans = res.json().get("answer", str(res.json()))
++                    except ValueError:
++                        gift_ans = res.text or "Backend returned an empty response."
++                    st.session_state.chat_history.append(
++                        {"role": "assistant", "content": f"≡ƒÄü **Gift Ideas for {target}:**\n\n{gift_ans}"}
++                    )
++                    st.rerun()
++
++        st.markdown("---")
++        st.session_state.voice_enabled = st.checkbox("≡ƒöè Voice Response", value=st.session_state.get("voice_enabled", True))
++        if st.session_state.voice_enabled and st.button("≡ƒöè Test Voice"):
++            stop_speech(); speak_text("This is a test voice from your AI digital twin.")
++        if st.session_state.voice_enabled and st.button("ΓÅ╣ Stop Voice"):
++            stop_speech()
++        if st.button("≡ƒÆ╛ Generate CSV Export"):
++            csv_res = requests.get(f"http://127.0.0.1:8000/export?user_id={st.session_state.email}")
++            if csv_res.status_code == 200:
++                st.download_button("Download Memories", data=csv_res.content, file_name="twin_data.csv", mime="text/csv")
++
++        st.markdown("---")
++        twin_mood = st.select_slider("Personality", options=["Professional", "Natural", "Sarcastic"])
++
++        st.markdown("---")
++        # ΓöÇΓöÇ THEME TOGGLE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        _cur_theme = st.session_state.get("theme", "dark")
++        theme_label = "ΓÿÇ∩╕Å Light Mode" if _cur_theme == "dark" else "≡ƒîÖ Dark Mode"
++        if st.button(theme_label, key="theme_toggle_btn", use_container_width=True):
++            st.session_state.theme = "light" if _cur_theme == "dark" else "dark"
++            st.rerun()
++
++        # ΓöÇΓöÇ LANGUAGE SELECTOR ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        lang_opts = ["English", "Hindi", "Spanish", "French", "German", "Japanese", "Arabic", "Portuguese"]
++        cur_lang  = st.session_state.get("language", "English")
++        new_lang  = st.selectbox("≡ƒîì Response Language", lang_opts,
++                                  index=lang_opts.index(cur_lang) if cur_lang in lang_opts else 0,
++                                  key="lang_select")
++        if new_lang != cur_lang:
++            st.session_state.language = new_lang
++        if st.button("Logout"):
++            # Save current session before logging out
++            try:
++                hist = st.session_state.chat_history
++                ts   = st.session_state.chat_timestamps
++                if hist and st.session_state.get("current_session_id"):
++                    first_user = next((m["content"] for m in hist if m["role"] == "user"), "Chat")
++                    title = first_user[:48] + ("ΓÇª" if len(first_user) > 48 else "")
++                    requests.post("http://127.0.0.1:8000/chat/save", json={
++                        "user_id":    st.session_state.email,
++                        "session_id": st.session_state.current_session_id,
++                        "messages":   hist,
++                        "timestamps": ts,
++                        "title":      title,
++                    }, timeout=3)
++            except Exception:
++                pass
++            st.session_state.logged_in = False
++            st.rerun()
++
++# ΓöÇΓöÇΓöÇ MAIN CONTENT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++# Layout is handled via CSS ΓÇö no wrapper divs needed
++
++if not st.session_state.logged_in:
++    # ΓöÇΓöÇ EXTRA LOGIN-PAGE STYLES ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    st.markdown("""
++    <style>
++    /* ΓòÉΓòÉ AUTH PAGE ΓòÉΓòÉ */
++
++    /* No top gap on auth page */
++    .block-container { padding-top: 2rem !important; }
++
++    /* Logo */
++    .auth-logo { text-align: center; margin-bottom: 36px; }
++    .auth-main-title {
++        font-size: 7rem !important;
++        font-weight: 900 !important;
++        color: #38bdf8 !important;
++        margin-bottom: 10px !important;
++        letter-spacing: -2px !important;
++        line-height: 1.05 !important;
++        text-shadow: 0 0 50px rgba(56,189,248,0.4) !important;
++        display: block !important;
++    }
++    .auth-logo p {
++        color: #64748b !important;
++        font-size: 1.25rem !important;
++        margin-top: 0 !important;
++        font-weight: 400 !important;
++        letter-spacing: 0.3px !important;
++    }
++
++    /* Tab strip ΓÇö force large text with every selector Streamlit uses */
++    .stTabs [data-baseweb="tab-list"] {
++        gap: 0 !important;
++        border-bottom: 2px solid #1e293b !important;
++        margin-bottom: 28px !important;
++    }
++    .stTabs [data-baseweb="tab-list"] [data-baseweb="tab"],
++    .stTabs [data-baseweb="tab"],
++    button[data-baseweb="tab"],
++    [role="tab"] {
++        flex: 1 !important;
++        justify-content: center !important;
++        font-weight: 900 !important;
++        font-size: 2.2rem !important;
++        color: #475569 !important;
++        padding: 22px 0 !important;
++        border-bottom: 3px solid transparent !important;
++        letter-spacing: 6px !important;
++        text-transform: uppercase !important;
++    }
++    /* Target the inner p that Streamlit actually renders inside each tab */
++    .stTabs [data-baseweb="tab"] p,
++    .stTabs [data-baseweb="tab"] div,
++    .stTabs [data-baseweb="tab"] span,
++    [role="tab"] p,
++    [role="tab"] span {
++        font-size: 2.2rem !important;
++        font-weight: 900 !important;
++        letter-spacing: 6px !important;
++        text-transform: uppercase !important;
++    }
++    .stTabs [aria-selected="true"],
++    [role="tab"][aria-selected="true"] {
++        color: #38bdf8 !important;
++        border-bottom: 3px solid #38bdf8 !important;
++    }
++
++    /* Input labels */
++    .stTextInput label {
++        font-size: 1.15rem !important; font-weight: 700 !important;
++        color: #94a3b8 !important; margin-bottom: 6px !important;
++    }
++
++    /* Input boxes */
++    .stTextInput > div > div > input {
++        background: #1e293b !important;
++        border: 1.5px solid #334155 !important;
++        border-radius: 12px !important;
++        color: white !important;
++        font-size: 1.1rem !important;
++        padding: 14px 18px !important;
++        height: auto !important;
++    }
++    .stTextInput > div > div > input:focus {
++        border-color: #38bdf8 !important;
++        box-shadow: 0 0 0 3px rgba(56,189,248,0.2) !important;
++    }
++
++    /* Forgot password ΓÇö LEFT-aligned link-style button */
++    .fp-link-btn > button {
++        background: transparent !important;
++        border: none !important;
++        color: #38bdf8 !important;
++        font-size: 1rem !important;
++        font-weight: 700 !important;
++        padding: 0 !important;
++        height: auto !important;
++        width: auto !important;
++        text-decoration: underline;
++        text-align: left !important;
++        justify-content: flex-start !important;
++    }
++    .fp-link-btn > button:hover { color: #7dd3fc !important; }
++
++    /* Primary buttons (Sign In, Create Account) ΓÇö with glow hover */
++    div[data-testid="stButton"] > button[kind="primary"] {
++        background: linear-gradient(135deg, #0284c7, #0ea5e9) !important;
++        border: none !important; border-radius: 14px !important;
++        font-weight: 800 !important; font-size: 1.15rem !important;
++        letter-spacing: 1.5px; height: 3.6em !important;
++        transition: all 0.25s ease !important;
++        box-shadow: 0 4px 18px rgba(2,132,199,0.4) !important;
++    }
++    div[data-testid="stButton"] > button[kind="primary"]:hover {
++        background: linear-gradient(135deg, #0369a1, #38bdf8) !important;
++        transform: translateY(-3px) scale(1.01) !important;
++        box-shadow: 0 10px 35px rgba(56,189,248,0.6) !important;
++        letter-spacing: 3px !important;
++    }
++
++    /* OTP card */
++    .otp-card {
++        background: rgba(56,189,248,0.04);
++        border: 1.5px solid rgba(56,189,248,0.25);
++        border-radius: 18px; padding: 32px 36px; margin-top: 10px;
++    }
++
++    /* OTP step badge */
++    .otp-step-badge {
++        display: inline-block;
++        background: rgba(56,189,248,0.15);
++        color: #38bdf8;
++        font-size: 1.15rem !important; font-weight: 800;
++        padding: 8px 24px; border-radius: 50px;
++        border: 1.5px solid rgba(56,189,248,0.4);
++        margin-bottom: 20px; letter-spacing: 0.5px;
++    }
++
++    /* OTP card body text */
++    .otp-body-text {
++        font-size: 1.1rem !important; color: #94a3b8;
++        margin-bottom: 20px; line-height: 1.6;
++    }
++
++    /* Reset title */
++    .reset-title {
++        font-size: 2.2rem !important; font-weight: 800;
++        color: #e2e8f0; margin-bottom: 24px;
++    }
++    </style>
++    """, unsafe_allow_html=True)
++
++    # ΓöÇΓöÇ LOGO / HEADER ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    st.markdown("""
++    <div class="auth-logo">
++        <div class="auth-main-title">≡ƒºá AI Digital Twin</div>
++        <p>Your personalised AI that thinks, codes, and dresses like you.</p>
++    </div>
++    """, unsafe_allow_html=True)
++
++    # ΓöÇΓöÇ FORGOT PASSWORD STATE MACHINE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    if "fp_step" not in st.session_state:
++        st.session_state.fp_step = None   # None | "enter_email" | "enter_otp" | "new_password"
++    if "fp_email" not in st.session_state:
++        st.session_state.fp_email = ""
++    if "fp_otp" not in st.session_state:
++        st.session_state.fp_otp = ""
++
++    # ΓöÇΓöÇ FORGOT PASSWORD FLOW (overlays the normal tabs when active) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    if st.session_state.fp_step is not None:
++        st.markdown("---")
++        st.markdown('<p class="reset-title">≡ƒöæ Reset Your Password</p>', unsafe_allow_html=True)
++
++        # ΓöÇΓöÇ STEP 1: Enter email ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        if st.session_state.fp_step == "enter_email":
++            st.markdown('<div class="otp-card">', unsafe_allow_html=True)
++            st.markdown('<span class="otp-step-badge">Step 1 of 3 ΓÇö Enter Your Email</span>', unsafe_allow_html=True)
++            st.markdown('<p class="otp-body-text">Enter the email address linked to your account. We will send a 6-digit OTP to reset your password.</p>', unsafe_allow_html=True)
++            fp_email_input = st.text_input("Registered Email", placeholder="you@example.com", key="fp_email_input")
++            c1, c2 = st.columns([1, 1])
++            with c1:
++                if st.button("≡ƒôº Send OTP", key="fp_send_otp", type="primary", use_container_width=True):
++                    if not fp_email_input.strip():
++                        st.error("Please enter your email address.")
++                    else:
++                        with st.spinner("Sending OTP..."):
++                            try:
++                                r = requests.post(
++                                    "http://127.0.0.1:8000/forgot_password/send_otp",
++                                    params={"email": fp_email_input.strip()},
++                                    timeout=15,
++                                )
++                                if r.status_code == 200:
++                                    st.session_state.fp_email = fp_email_input.strip()
++                                    st.session_state.fp_step  = "enter_otp"
++                                    st.success("OTP sent! Check your inbox (and spam folder).")
++                                    st.rerun()
++                                else:
++                                    detail = r.json().get("detail", "Unknown error.")
++                                    st.error(f"Γ¥î {detail}")
++                            except requests.exceptions.ConnectionError:
++                                st.error("Γ¥î Cannot reach the backend. Make sure uvicorn is running.")
++            with c2:
++                if st.button("ΓåÉ Back to Login", key="fp_back1", use_container_width=True):
++                    st.session_state.fp_step = None
++                    st.rerun()
++            st.markdown('</div>', unsafe_allow_html=True)
++
++        # ΓöÇΓöÇ STEP 2: Enter OTP ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        elif st.session_state.fp_step == "enter_otp":
++            st.markdown('<div class="otp-card">', unsafe_allow_html=True)
++            st.markdown('<span class="otp-step-badge">Step 2 of 3 ΓÇö Enter OTP</span>', unsafe_allow_html=True)
++            st.markdown(f'<p class="otp-body-text">A 6-digit OTP was sent to <b style="color:#38bdf8">{st.session_state.fp_email}</b>. It expires in <b style="color:#f59e0b">10 minutes</b>.</p>', unsafe_allow_html=True)
++            otp_input = st.text_input("6-Digit OTP", placeholder="e.g. 482916", max_chars=6, key="fp_otp_input")
++            c1, c2 = st.columns([1, 1])
++            with c1:
++                if st.button("Γ£à Verify OTP", key="fp_verify_otp", type="primary", use_container_width=True):
++                    if len(otp_input.strip()) != 6:
++                        st.error("OTP must be exactly 6 digits.")
++                    else:
++                        with st.spinner("Verifying..."):
++                            try:
++                                r = requests.post(
++                                    "http://127.0.0.1:8000/forgot_password/verify_otp",
++                                    params={"email": st.session_state.fp_email, "otp": otp_input.strip()},
++                                    timeout=10,
++                                )
++                                if r.status_code == 200:
++                                    st.session_state.fp_otp  = otp_input.strip()
++                                    st.session_state.fp_step = "new_password"
++                                    st.success("OTP verified! Set your new password.")
++                                    st.rerun()
++                                else:
++                                    detail = r.json().get("detail", "Verification failed.")
++                                    st.error(f"Γ¥î {detail}")
++                            except requests.exceptions.ConnectionError:
++                                st.error("Γ¥î Backend offline.")
++            with c2:
++                if st.button("Γå⌐ Resend OTP", key="fp_resend", use_container_width=True):
++                    st.session_state.fp_step = "enter_email"
++                    st.rerun()
++            st.markdown('</div>', unsafe_allow_html=True)
++
++        # ΓöÇΓöÇ STEP 3: New password ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        elif st.session_state.fp_step == "new_password":
++            st.markdown('<div class="otp-card">', unsafe_allow_html=True)
++            st.markdown('<span class="otp-step-badge">Step 3 of 3 ΓÇö Set New Password</span>', unsafe_allow_html=True)
++            st.markdown('<p class="otp-body-text">Choose a strong password ΓÇö minimum 6 characters.</p>', unsafe_allow_html=True)
++            new_pw  = st.text_input("New Password",     type="password", placeholder="Min. 6 characters", key="fp_new_pw")
++            conf_pw = st.text_input("Confirm Password", type="password", placeholder="Re-enter password",  key="fp_conf_pw")
++            c1, c2 = st.columns([1, 1])
++            with c1:
++                if st.button("≡ƒöÆ Reset Password", key="fp_reset_btn", type="primary", use_container_width=True):
++                    if len(new_pw) < 6:
++                        st.error("Password must be at least 6 characters.")
++                    elif new_pw != conf_pw:
++                        st.error("Passwords do not match.")
++                    else:
++                        with st.spinner("Resetting password..."):
++                            try:
++                                r = requests.post(
++                                    "http://127.0.0.1:8000/forgot_password/reset",
++                                    json={
++                                        "email": st.session_state.fp_email,
++                                        "otp":   st.session_state.fp_otp,
++                                        "new_password": new_pw,
++                                    },
++                                    timeout=10,
++                                )
++                                if r.status_code == 200:
++                                    st.success("Γ£à Password reset successfully! You can now log in.")
++                                    st.session_state.fp_step  = None
++                                    st.session_state.fp_email = ""
++                                    st.session_state.fp_otp   = ""
++                                    st.balloons()
++                                    st.rerun()
++                                else:
++                                    detail = r.json().get("detail", "Reset failed.")
++                                    st.error(f"Γ¥î {detail}")
++                            except requests.exceptions.ConnectionError:
++                                st.error("Γ¥î Backend offline.")
++            with c2:
++                if st.button("ΓåÉ Back", key="fp_back3", use_container_width=True):
++                    st.session_state.fp_step = "enter_otp"
++                    st.rerun()
++            st.markdown('</div>', unsafe_allow_html=True)
++    # ΓöÇΓöÇ NORMAL LOGIN / REGISTER TABS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    else:
++        t1, t2 = st.tabs([
++            "≡ƒöÉ  L O G I N",
++            "Γ£¿  R E G I S T E R"
++        ])
++
++        with t1:
++            st.markdown("<br>", unsafe_allow_html=True)
++
++            # ΓöÇΓöÇ Toggle: Password login vs OTP login ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++            if "login_method" not in st.session_state:
++                st.session_state.login_method = "password"
++            if "lotp_step" not in st.session_state:
++                st.session_state.lotp_step = "enter_email"  # "enter_email" | "enter_otp"
++            if "lotp_email" not in st.session_state:
++                st.session_state.lotp_email = ""
++
++            m1, m2 = st.columns(2)
++            with m1:
++                if st.button(
++                    "≡ƒöæ  Password Login" if st.session_state.login_method != "password" else "Γ£à  Password Login",
++                    key="method_pwd", use_container_width=True,
++                    type="primary" if st.session_state.login_method == "password" else "secondary",
++                ):
++                    st.session_state.login_method = "password"
++                    st.session_state.lotp_step = "enter_email"
++                    st.rerun()
++            with m2:
++                if st.button(
++                    "≡ƒôº  Login via OTP" if st.session_state.login_method != "otp" else "Γ£à  Login via OTP",
++                    key="method_otp", use_container_width=True,
++                    type="primary" if st.session_state.login_method == "otp" else "secondary",
++                ):
++                    st.session_state.login_method = "otp"
++                    st.session_state.lotp_step = "enter_email"
++                    st.rerun()
++
++            st.markdown("<br>", unsafe_allow_html=True)
++
++            # ΓòÉΓòÉ PASSWORD LOGIN ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
++            if st.session_state.login_method == "password":
++                e = st.text_input("Email", placeholder="your@email.com", key="l_email")
++                p = st.text_input("Password", type="password", placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó", key="l_pwd")
++
++                fp_col1, fp_col2 = st.columns([1, 3])
++                with fp_col1:
++                    st.markdown('<div class="fp-link-btn">', unsafe_allow_html=True)
++                    if st.button("Forgot Password?", key="fp_trigger_btn"):
++                        st.session_state.fp_step = "enter_email"
++                        st.rerun()
++                    st.markdown('</div>', unsafe_allow_html=True)
++
++                st.markdown("<br>", unsafe_allow_html=True)
++                if st.button("SIGN IN", key="signin_btn", type="primary", use_container_width=True):
++                    if not e.strip() or not p.strip():
++                        st.error("Please enter both email and password.")
++                    else:
++                        with st.spinner("Signing in..."):
++                            try:
++                                res = requests.get(
++                                    "http://127.0.0.1:8000/login",
++                                    params={"email": e.strip(), "password": p.strip()},
++                                    timeout=10,
++                                )
++                                if res.status_code == 200:
++                                    import uuid as _uuid_login
++                                    data = res.json()
++                                    st.session_state.update({
++                                        "logged_in": True,
++                                        "email": e.strip(),
++                                        "name": data["name"],
++                                        "chat_history": [],
++                                        "chat_timestamps": [],
++                                        "current_session_id": str(_uuid_login.uuid4()),
++                                    })
++                                    st.rerun()
++                                elif res.status_code == 401:
++                                    st.error("Γ¥î Incorrect email or password.")
++                                else:
++                                    st.error(f"Login error ({res.status_code}). Try again.")
++                            except requests.exceptions.ConnectionError:
++                                st.error("Γ¥î Cannot reach the backend. Make sure uvicorn is running on port 8000.")
++                            except requests.exceptions.Timeout:
++                                st.error("ΓÅ░ Backend took too long to respond. Try again.")
++                            except Exception as ex:
++                                st.error(f"Unexpected error: {ex}")
++
++            # ΓòÉΓòÉ OTP LOGIN ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
++            else:
++                # Step 1: Enter email
++                if st.session_state.lotp_step == "enter_email":
++                    st.markdown('<div class="otp-card">', unsafe_allow_html=True)
++                    st.markdown('<span class="otp-step-badge">Step 1 of 2 ΓÇö Enter Your Email</span>', unsafe_allow_html=True)
++                    st.markdown('<p class="otp-body-text">Enter your registered email. We\'ll send a 6-digit OTP ΓÇö no password needed.</p>', unsafe_allow_html=True)
++                    lotp_email = st.text_input("Registered Email", placeholder="you@example.com", key="lotp_email_input")
++                    if st.button("≡ƒôº Send OTP", key="lotp_send", type="primary", use_container_width=True):
++                        if not lotp_email.strip():
++                            st.error("Please enter your email address.")
++                        else:
++                            with st.spinner("Sending OTP..."):
++                                try:
++                                    r = requests.post(
++                                        "http://127.0.0.1:8000/login_otp/send",
++                                        params={"email": lotp_email.strip()},
++                                        timeout=15,
++                                    )
++                                    if r.status_code == 200:
++                                        st.session_state.lotp_email = lotp_email.strip()
++                                        st.session_state.lotp_step  = "enter_otp"
++                                        st.success("Γ£à OTP sent! Check your inbox.")
++                                        st.rerun()
++                                    else:
++                                        detail = r.json().get("detail", "Unknown error.")
++                                        st.error(f"Γ¥î {detail}")
++                                except requests.exceptions.ConnectionError:
++                                    st.error("Γ¥î Cannot reach backend. Make sure uvicorn is running.")
++                    st.markdown('</div>', unsafe_allow_html=True)
++
++                # Step 2: Enter OTP
++                elif st.session_state.lotp_step == "enter_otp":
++                    st.markdown('<div class="otp-card">', unsafe_allow_html=True)
++                    st.markdown('<span class="otp-step-badge">Step 2 of 2 ΓÇö Enter OTP</span>', unsafe_allow_html=True)
++                    st.markdown(f'<p class="otp-body-text">A 6-digit OTP was sent to <b style="color:#38bdf8">{st.session_state.lotp_email}</b>. Expires in <b style="color:#f59e0b">10 minutes</b>.</p>', unsafe_allow_html=True)
++                    lotp_code = st.text_input("6-Digit OTP", placeholder="e.g. 482916", max_chars=6, key="lotp_code_input")
++                    c1, c2 = st.columns([1, 1])
++                    with c1:
++                        if st.button("≡ƒöô Verify & Login", key="lotp_verify", type="primary", use_container_width=True):
++                            if len(lotp_code.strip()) != 6:
++                                st.error("OTP must be exactly 6 digits.")
++                            else:
++                                with st.spinner("Verifying OTP..."):
++                                    try:
++                                        r = requests.post(
++                                            "http://127.0.0.1:8000/login_otp/verify",
++                                            params={"email": st.session_state.lotp_email, "otp": lotp_code.strip()},
++                                            timeout=10,
++                                        )
++                                        if r.status_code == 200:
++                                            import uuid as _uuid_otp
++                                            data = r.json()
++                                            _otp_email = st.session_state.lotp_email
++                                            st.session_state.update({
++                                                "logged_in": True,
++                                                "email": _otp_email,
++                                                "name": data["name"],
++                                                "chat_history": [],
++                                                "chat_timestamps": [],
++                                                "current_session_id": str(_uuid_otp.uuid4()),
++                                            })
++                                            st.session_state.lotp_step  = "enter_email"
++                                            st.session_state.lotp_email = ""
++                                            st.balloons()
++                                            st.rerun()
++                                        else:
++                                            detail = r.json().get("detail", "Verification failed.")
++                                            st.error(f"Γ¥î {detail}")
++                                    except requests.exceptions.ConnectionError:
++                                        st.error("Γ¥î Backend offline.")
++                    with c2:
++                        if st.button("Γå⌐ Resend OTP", key="lotp_resend", use_container_width=True):
++                            st.session_state.lotp_step = "enter_email"
++                            st.rerun()
++                    st.markdown('</div>', unsafe_allow_html=True)
++
++        with t2:
++            st.markdown("<br>", unsafe_allow_html=True)
++            n   = st.text_input("Full Name",        placeholder="Nirmit Prasad",    key="reg_name")
++            em  = st.text_input("Email",            placeholder="you@example.com",  key="reg_email")
++            pw  = st.text_input("Password",         type="password", placeholder="Min. 6 characters", key="reg_pw")
++            cpw = st.text_input("Confirm Password", type="password", placeholder="Re-enter password",  key="reg_cpw")
++            st.markdown("<br>", unsafe_allow_html=True)
++            if st.button("CREATE ACCOUNT", key="register_btn", type="primary", use_container_width=True):
++                if not n.strip() or not em.strip() or not pw.strip():
++                    st.error("All fields are required.")
++                elif len(pw) < 6:
++                    st.error("Password must be at least 6 characters.")
++                elif pw != cpw:
++                    st.error("Passwords do not match.")
++                else:
++                    with st.spinner("Creating your account..."):
++                        try:
++                            r = requests.post(
++                                "http://127.0.0.1:8000/register",
++                                json={"name": n.strip(), "email": em.strip(), "password": pw},
++                                timeout=10,
++                            )
++                            if r.status_code == 200:
++                                st.success("Γ£à Account created! Switch to the Login tab to sign in.")
++                                st.balloons()
++                            elif r.status_code == 409:
++                                st.warning("ΓÜá∩╕Å An account with this email already exists. Try logging in instead.")
++                            else:
++                                st.error(f"Registration failed ({r.status_code}). Try again.")
++                        except requests.exceptions.ConnectionError:
++                            st.error("Γ¥î Cannot reach the backend. Make sure uvicorn is running.")
++                        except Exception as ex:
++                            st.error(f"Unexpected error: {ex}")
++
++else:
++    # Handle tab redirect from chip buttons
++    _goto_shadow = st.session_state.pop("goto_shadow", False)
++
++    st.title(f"≡ƒºá {st.session_state.name}'s Twin")
++    tab_chat, tab_brain, tab_shadow, tab_mirror, tab_news, tab_analytics, tab_goals, tab_calendar = st.tabs([
++        "≡ƒÆ¼ CONVERSATION", "≡ƒºá BRAIN EXPLORER", "≡ƒæ╛ SHADOW DEVELOPER",
++        "≡ƒ¬₧ STYLE MIRROR", "≡ƒô░ TWIN NEWSROOM",
++        "≡ƒôè ANALYTICS", "≡ƒÄ» GOALS", "≡ƒôà CALENDAR"
++    ])
++
++    if _goto_shadow:
++        st.info("≡ƒæ╛ Head to the **SHADOW DEVELOPER** tab to review your code!")
++
++    # ΓöÇΓöÇΓöÇ TAB: CONVERSATION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_chat:
++        import datetime as _dt
++        import uuid as _uuid
++
++        # ΓöÇΓöÇ Auto-create session ID on first message ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        if not st.session_state.get("current_session_id"):
++            st.session_state.current_session_id = str(_uuid.uuid4())
++
++        # ΓöÇΓöÇ Auto-save current session to backend whenever history changes ΓöÇΓöÇΓöÇΓöÇ
++        def _save_session():
++            hist = st.session_state.chat_history
++            ts   = st.session_state.chat_timestamps
++            if not hist:
++                return
++            # Derive title from first user message
++            first_user = next((m["content"] for m in hist if m["role"] == "user"), "New Chat")
++            title = first_user[:48] + ("ΓÇª" if len(first_user) > 48 else "")
++            try:
++                requests.post("http://127.0.0.1:8000/chat/save", json={
++                    "user_id":    st.session_state.email,
++                    "session_id": st.session_state.current_session_id,
++                    "messages":   hist,
++                    "timestamps": ts,
++                    "title":      title,
++                }, timeout=3)
++            except Exception:
++                pass
++
++        # ΓöÇΓöÇ TOP BAR: Chat History | New Chat ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        tb1, tb2, tb3 = st.columns([0.22, 0.14, 0.64])
++        with tb1:
++            hist_label = "≡ƒòÿ Hide History" if st.session_state.get("show_chat_history") else "≡ƒòÿ Chat History"
++            if st.button(hist_label, key="toggle_chat_history", use_container_width=True):
++                st.session_state.show_chat_history = not st.session_state.get("show_chat_history", False)
++                st.rerun()
++        with tb2:
++            if st.button("Γ£Å∩╕Å New Chat", key="new_chat_btn", use_container_width=True):
++                _save_session()
++                st.session_state.chat_history      = []
++                st.session_state.chat_timestamps   = []
++                st.session_state.current_session_id = str(_uuid.uuid4())
++                st.session_state.show_chat_history  = False
++                st.rerun()
++
++        # ΓöÇΓöÇ SESSIONS PANEL (persistent history like ChatGPT/Gemini) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        if st.session_state.get("show_chat_history", False):
++            try:
++                sess_res = requests.get("http://127.0.0.1:8000/chat/sessions",
++                                        params={"user_id": st.session_state.email}, timeout=4).json()
++                sessions = sess_res.get("sessions", [])
++            except Exception:
++                sessions = []
++
++            cur_msgs = st.session_state.chat_history
++            cur_ts   = st.session_state.chat_timestamps
++
++            # Merge in-memory history into sessions list for display
++            total_pairs = sum(1 for m in cur_msgs if m["role"] == "user")
++            total_sessions = len(sessions)
++
++            st.markdown(f"""
++            <div class="sess-panel">
++                <div class="sess-header">
++                    <span class="sess-title">≡ƒÆ¼ Chat History</span>
++                    <span class="ch-count">{total_sessions} conversation{"s" if total_sessions != 1 else ""}</span>
++                </div>
++            </div>
++            """, unsafe_allow_html=True)
++
++            if not sessions and not cur_msgs:
++                st.markdown('<div style="color:#475569;font-size:0.88rem;padding:12px 4px">≡ƒîÖ No saved conversations yet.</div>', unsafe_allow_html=True)
++            else:
++                for sess in sessions:
++                    sid     = sess.get("session_id", "")
++                    s_title = sess.get("title", "Chat")
++                    s_date  = sess.get("updated_at", "")[:10]
++                    is_cur  = (sid == st.session_state.current_session_id)
++
++                    s_col1, s_col2 = st.columns([0.82, 0.18])
++                    with s_col1:
++                        style = "sess-item sess-item-active" if is_cur else "sess-item"
++                        st.markdown(f"""
++                        <div class="{style}">
++                            <div class="sess-item-title">{'≡ƒƒó ' if is_cur else '≡ƒÆ¼ '}{s_title}</div>
++                            <div class="sess-item-meta">≡ƒôà {s_date}</div>
++                        </div>""", unsafe_allow_html=True)
++                    with s_col2:
++                        if st.button("Load" if not is_cur else "View", key=f"load_sess_{sid}"):
++                            _save_session()
++                            try:
++                                loaded = requests.get("http://127.0.0.1:8000/chat/load",
++                                                      params={"user_id": st.session_state.email,
++                                                              "session_id": sid}, timeout=4).json()
++                                st.session_state.chat_history      = loaded.get("messages", [])
++                                st.session_state.chat_timestamps   = loaded.get("timestamps", [])
++                                st.session_state.current_session_id = sid
++                                st.session_state.show_chat_history  = False
++                            except Exception:
++                                st.error("Could not load session.")
++                            st.rerun()
++
++                # Delete with expander
++                with st.expander("≡ƒùæ∩╕Å Delete a conversation"):
++                    del_opts = {s.get("title","Chat")[:40]: s.get("session_id") for s in sessions}
++                    del_choice = st.selectbox("Select", list(del_opts.keys()), key="del_sess_select")
++                    if st.button("≡ƒùæ∩╕Å Confirm Delete", key="del_sess_btn"):
++                        del_sid = del_opts[del_choice]
++                        try:
++                            requests.delete(f"http://127.0.0.1:8000/chat/session/{del_sid}",
++                                            params={"user_id": st.session_state.email}, timeout=4)
++                        except Exception:
++                            pass
++                        if del_sid == st.session_state.current_session_id:
++                            st.session_state.chat_history    = []
++                            st.session_state.chat_timestamps = []
++                            st.session_state.current_session_id = str(_uuid.uuid4())
++                        st.session_state.show_chat_history = False
++                        st.rerun()
++
++            st.markdown("---")
++
++        # ΓöÇΓöÇ LIVE CHAT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        first_name = st.session_state.name.split()[0]
++
++        # Beautiful welcome card + functional quick-action chips
++        if not st.session_state.chat_history:
++            st.markdown(f"""
++            <div class="conv-welcome">
++                <span class="conv-welcome-emoji">≡ƒºá</span>
++                <h3>Hey <span>{first_name}</span>, your Twin is live</h3>
++                <p>I know your style, your code, your people. Ask me anything.</p>
++            </div>
++            """, unsafe_allow_html=True)
++
++            # Functional quick-action buttons styled as chips
++            chip_c1, chip_c2, chip_c3, chip_c4, chip_c5 = st.columns(5)
++            chip_prompt = None
++            chip_goto_shadow = False
++
++            with chip_c1:
++                if st.button("≡ƒæù What to wear?", key="chip_wear", use_container_width=True):
++                    chip_prompt = "Based on my personal style memories, what should I wear today? Also ask me if there's a specific occasion so you can tailor the suggestion."
++            with chip_c2:
++                if st.button("≡ƒÄü Gift idea", key="chip_gift", use_container_width=True):
++                    chip_prompt = "Based on what you know about my relationships and interests, suggest a thoughtful gift idea. Ask me who the gift is for so you can personalise it."
++            with chip_c3:
++                if st.button("≡ƒÆ╗ Review code", key="chip_code", use_container_width=True):
++                    chip_goto_shadow = True
++            with chip_c4:
++                if st.button("≡ƒô░ Tech news", key="chip_news", use_container_width=True):
++                    chip_prompt = "What are the most important and interesting tech news and AI developments trending right now? Give me a brief, engaging summary of the top 5 things I should know."
++            with chip_c5:
++                if st.button("≡ƒº¼ What do you know?", key="chip_know", use_container_width=True):
++                    chip_prompt = "Tell me everything you know about me based on your memories. Summarise my interests, style, work, and relationships in a personal and engaging way."
++
++            # Navigate to shadow developer tab
++            if chip_goto_shadow:
++                st.session_state["goto_shadow"] = True
++                st.rerun()
++
++            # Fire chip as a prompt
++            if chip_prompt:
++                st.session_state["chip_inject"] = chip_prompt
++                st.rerun()
++
++        # Handle chip-injected prompt (after rerun)
++        if st.session_state.get("chip_inject"):
++            chip_prompt = st.session_state.pop("chip_inject")
++            now_str = _dt.datetime.now().strftime("%d %b %Y ΓÇó %I:%M %p")
++            st.session_state.chat_history.append({"role": "user", "content": chip_prompt})
++            st.session_state.chat_timestamps.append(now_str)
++            with st.chat_message("user"):
++                st.write(chip_prompt)
++            with st.chat_message("assistant"):
++                with st.spinner("Γ£¿ Twin is thinkingΓÇª"):
++                    try:
++                        res = requests.get("http://127.0.0.1:8000/ask",
++                                           params={"user_id": st.session_state.email,
++                                                   "question": chip_prompt, "mood": twin_mood})
++                        answer = res.json()["answer"]
++                        st.write(answer)
++                        reply_ts = _dt.datetime.now().strftime("%d %b %Y ΓÇó %I:%M %p")
++                        st.session_state.chat_history.append({"role": "assistant", "content": answer})
++                        st.session_state.chat_timestamps.append(reply_ts)
++                        st.session_state.last_answer = answer
++                        _save_session()
++                        if st.session_state.get("voice_enabled", True):
++                            speak_text(answer)
++                    except Exception as ex:
++                        st.error(f"Error: {str(ex)}")
++            st.rerun()
++
++        # Live messages
++        for message in st.session_state.chat_history:
++            with st.chat_message(message["role"]):
++                st.write(message["content"])
++
++        # ΓöÇΓöÇ COMPACT ACTION ROW ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        a1, a2, a3 = st.columns([0.13, 0.13, 0.74])
++        with a1:
++            img_on = st.toggle("≡ƒôÄ Photo", key="show_img_upload",
++                               value=st.session_state.get("show_img_upload", False))
++        with a2:
++            voice_on = st.toggle("≡ƒÄñ Voice", key="show_voice_input",
++                                 value=st.session_state.get("show_voice_input", False))
++        with a3:
++            if img_on or voice_on:
++                active = []
++                if img_on:   active.append("≡ƒôÄ image upload active")
++                if voice_on: active.append("≡ƒÄñ voice input active")
++                st.markdown(f"<p style='color:#38bdf8;font-size:0.78rem;margin-top:9px;font-weight:600'>{'  ┬╖  '.join(active)}</p>", unsafe_allow_html=True)
++            else:
++                st.markdown("<p style='color:#334155;font-size:0.75rem;margin-top:9px'>≡ƒôÄ or ≡ƒÄñ to attach</p>", unsafe_allow_html=True)
++
++        uploaded_images = None
++        voice_prompt    = None
++
++        if img_on:
++            st.markdown('<div class="conv-upload-slim"><span class="conv-upload-slim-label">≡ƒôÄ ATTACH IMAGES ┬╖ JPG / PNG ┬╖ UP TO 10</span>', unsafe_allow_html=True)
++            uploaded_images = st.file_uploader(
++                "", type=["jpg", "jpeg", "png"],
++                accept_multiple_files=True,
++                label_visibility="collapsed",
++            )
++            st.markdown('</div>', unsafe_allow_html=True)
++
++        if voice_on:
++            voice_key   = f"voice_input_{st.session_state.get('voice_input_key', 0)}"
++            voice_prompt = speech_to_text(
++                language="en",
++                start_prompt="≡ƒÄñ  Tap & speak",
++                stop_prompt="≡ƒ¢æ  Stop",
++                key=voice_key,
++            )
++
++        text_prompt = st.chat_input("Ask your Twin anythingΓÇª")
++        prompt = text_prompt or voice_prompt
++
++        if st.session_state.get("suppress_next_prompt", False):
++            st.session_state["suppress_next_prompt"] = False
++            prompt = None
++
++        if prompt:
++            emotion      = st.session_state.get("detected_emotion", "neutral")
++            webcam_active = st.session_state.get("webcam_mood_enabled", False)
++            tone_desc, emotion_opener = EMOTION_TONE.get(emotion, EMOTION_TONE["neutral"])
++            mood_instruction = ""
++            if webcam_active and emotion != "neutral":
++                mood_instruction = (
++                    f"The user appears to be feeling {emotion} right now. Adopt a {tone_desc} tone. "
++                    f"Start your reply with: '{emotion_opener}' then answer their question."
++                )
++            now_str = _dt.datetime.now().strftime("%d %b %Y ΓÇó %I:%M %p")
++            st.session_state.chat_history.append({"role": "user", "content": prompt})
++            st.session_state.chat_timestamps.append(now_str)
++            with st.chat_message("user"):
++                st.write(prompt)
++            with st.chat_message("assistant"):
++                with st.spinner("Γ£¿ Twin is thinkingΓÇª"):
++                    try:
++                        _lang = st.session_state.get("language", "English")
++                        _lang_instr = f"\n\n[LANGUAGE: Always respond in {_lang}.]" if _lang != "English" else ""
++                        augmented_question = (f"[MOOD CONTEXT: {mood_instruction}]\n\nUser question: {prompt}{_lang_instr}" if mood_instruction else f"{prompt}{_lang_instr}")
++                        if uploaded_images:
++                            files = [("files", (img.name, img.getvalue(), img.type)) for img in uploaded_images[:10]]
++                            res = requests.post("http://127.0.0.1:8000/analyze_image",
++                                                params={"user_id": st.session_state.email, "question": augmented_question, "mood": twin_mood},
++                                                files=files)
++                        else:
++                            res = requests.get("http://127.0.0.1:8000/ask",
++                                               params={"user_id": st.session_state.email, "question": augmented_question, "mood": twin_mood})
++                        answer = res.json()["answer"]
++                        st.write(answer)
++                        reply_ts = _dt.datetime.now().strftime("%d %b %Y ΓÇó %I:%M %p")
++                        st.session_state.chat_history.append({"role": "assistant", "content": answer})
++                        st.session_state.chat_timestamps.append(reply_ts)
++                        st.session_state.last_answer = answer
++                        _save_session()
++                        if st.session_state.get("voice_enabled", True):
++                            speak_text(answer)
++                        st.session_state["voice_input_key"] = st.session_state.get("voice_input_key", 0) + 1
++                    except Exception as ex:
++                        st.error(f"Error: {str(ex)}")
++
++    # ΓöÇΓöÇΓöÇ TAB: BRAIN EXPLORER ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_brain:
++        col_left, col_right = st.columns([0.4, 0.6])
++        with col_left:
++            st.subheader("≡ƒº¼ Training")
++            fact = st.text_area("Update Twin Memory:", height=150)
++            if st.button("Integrate Memory"):
++                requests.post(f"http://127.0.0.1:8000/train?user_id={st.session_state.email}&details={fact}")
++                st.success("Trained!")
++        with col_right:
++            st.subheader("≡ƒºá Memory List")
++            try:
++                import datetime
++                m_res = requests.get(f"http://127.0.0.1:8000/memories?user_id={st.session_state.email}").json()
++                memories = m_res.get("memories", [])
++                ids      = m_res.get("ids", [])
++                # Category detection helper
++                def detect_category(text):
++                    t = text.lower()
++                    if any(k in t for k in ["[coding style", "code", "python", "javascript", "function", "def ", "class ", "import "]):
++                        return ("≡ƒÆ╗", "Code Style")
++                    if any(k in t for k in ["[personal style]", "wear", "outfit", "fashion", "hoodie", "jeans", "colour"]):
++                        return ("≡ƒæù", "Style")
++                    if any(k in t for k in ["like", "love", "enjoy", "play", "hobby", "sport", "music", "game"]):
++                        return ("Γ¥ñ∩╕Å", "Interest")
++                    if any(k in t for k in ["work", "job", "company", "project", "team", "office", "client"]):
++                        return ("≡ƒÆ╝", "Work")
++                    if any(k in t for k in ["friend", "family", "sister", "brother", "mom", "dad", "colleague"]):
++                        return ("≡ƒæÑ", "People")
++                    return ("≡ƒºá", "General")
++
++                if memories:
++                    st.markdown(f'<span class="memory-count-badge">≡ƒùé∩╕Å {len(memories)} memories stored</span>', unsafe_allow_html=True)
++                    # Assign a pseudo-timestamp: newest first (index 0 = most recent)
++                    now = datetime.datetime.now()
++                    for i, (text, mid) in enumerate(zip(memories, ids)):
++                        # Spread timestamps: most recent = now, older ones spaced back
++                        delta_minutes = i * 7  # each older memory ~7 min apart
++                        ts = now - datetime.timedelta(minutes=delta_minutes)
++                        date_str = ts.strftime("%d %b %Y")
++                        time_str = ts.strftime("%I:%M %p")
++                        icon, cat = detect_category(text)
++                        # Clean display text (strip internal tags)
++                        display_text = text
++                        for tag in ["[CODING STYLE EXAMPLE]", "[PERSONAL STYLE]"]:
++                            display_text = display_text.replace(tag, "").strip()
++                        if len(display_text) > 180:
++                            display_text = display_text[:180] + "ΓÇª"
++
++                        c1, c2 = st.columns([0.88, 0.12])
++                        with c1:
++                            st.markdown(f"""
++                            <div class="memory-card">
++                                <div class="memory-card-text">{display_text}</div>
++                                <div class="memory-card-meta">
++                                    <span class="memory-badge">≡ƒòÉ {time_str}</span>
++                                    <span class="memory-badge">≡ƒôà {date_str}</span>
++                                    <span class="memory-badge-cat">{icon} {cat}</span>
++                                </div>
++                            </div>
++                            """, unsafe_allow_html=True)
++                        with c2:
++                            st.markdown("<div style='padding-top:10px'>", unsafe_allow_html=True)
++                            if st.button("≡ƒùæ∩╕Å", key=f"del_{i}"):
++                                requests.delete(f"http://127.0.0.1:8000/memories/{mid}")
++                                st.rerun()
++                            st.markdown("</div>", unsafe_allow_html=True)
++                else:
++                    st.info("No memories yet. Add your first memory using the Training panel on the left!")
++            except:
++                pass
++
++    # ΓöÇΓöÇΓöÇ TAB: SHADOW DEVELOPER (ENHANCED) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_shadow:
++        st.markdown("""
++        <div class="shadow-header">
++            <h3>≡ƒæ╛ Shadow Developer Mode ΓÇö Enhanced</h3>
++            <p>Train your twin with your coding style, then debug with syntax checking, code execution, diff view, and git repo context.</p>
++        </div>
++        """, unsafe_allow_html=True)
++
++        shadow_col1, shadow_col2 = st.columns([0.45, 0.55])
++
++        # ΓöÇΓöÇ LEFT: STYLE TRAINING + REPO EXPLORER ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        with shadow_col1:
++            st.subheader("≡ƒº¼ Teach Your Coding Style")
++            st.caption("Paste examples of your own code so the twin learns your patterns.")
++            style_snippet = st.text_area(
++                "Paste a code snippet that represents your style:", height=180,
++                placeholder="def fetch_user(user_id):\n    try:\n        result = db.find({'_id': user_id})\n        return result\n    except Exception as e:\n        print(f'Error: {e}')\n        return None",
++                key="style_snippet",
++            )
++            style_note = st.text_input(
++                "Describe this style (optional):",
++                placeholder="e.g. I always use try/except, snake_case, short variable names",
++                key="style_note",
++            )
++            if st.button("≡ƒºá Train Coding Style", key="train_style"):
++                if style_snippet.strip():
++                    note = style_note.strip() or "general coding style"
++                    training_text = f"[CODING STYLE EXAMPLE] {note}:\n```\n{style_snippet}\n```"
++                    with st.spinner("Learning your coding style..."):
++                        requests.post("http://127.0.0.1:8000/train",
++                                      params={"user_id": st.session_state.email, "details": training_text})
++                    st.success("Γ£à Coding style learned!")
++                else:
++                    st.warning("Please paste a code snippet first.")
++
++            st.markdown("---")
++            st.caption("≡ƒôÜ Learned coding styles:")
++            try:
++                m_res = requests.get(f"http://127.0.0.1:8000/memories?user_id={st.session_state.email}").json()
++                style_memories = [(m, mid) for m, mid in zip(m_res["memories"], m_res["ids"]) if "[CODING STYLE EXAMPLE]" in m]
++                if style_memories:
++                    for mem, mid in style_memories:
++                        preview = mem.replace("[CODING STYLE EXAMPLE]", "").strip()[:120]
++                        c1, c2 = st.columns([0.88, 0.12])
++                        with c1:
++                            st.markdown(f'<div class="code-style-card">≡ƒöû {preview}...</div>', unsafe_allow_html=True)
++                        with c2:
++                            if st.button("≡ƒùæ∩╕Å", key=f"del_style_{mid}"):
++                                requests.delete(f"http://127.0.0.1:8000/memories/{mid}")
++                                st.rerun()
++                else:
++                    st.caption("No coding styles trained yet.")
++            except:
++                pass
++
++            # ΓöÇΓöÇ GIT REPO EXPLORER ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++            st.markdown("---")
++            st.subheader("≡ƒôü Git Repo Explorer")
++            st.caption("Point your twin to a local repo ΓÇö it reads all code files as context for debugging.")
++            repo_path_input = st.text_input(
++                "Local repo path:", placeholder="/home/user/my-project  or  ~/projects/app",
++                key="repo_path_input",
++            )
++            repo_ext_filter = st.text_input(
++                "File extensions (optional):", placeholder=".py,.js,.ts  (leave blank for all code files)",
++                key="repo_ext_filter",
++            )
++            if st.button("≡ƒöì Browse Repo", key="browse_repo"):
++                if repo_path_input.strip():
++                    with st.spinner("Reading repo files..."):
++                        params = {"repo_path": repo_path_input.strip(), "max_files": 25}
++                        if repo_ext_filter.strip():
++                            params["extensions"] = repo_ext_filter.strip()
++                        try:
++                            repo_res = requests.get("http://127.0.0.1:8000/repo_files", params=params)
++                            repo_data = repo_res.json()
++                            st.session_state["last_repo_data"] = repo_data
++                            git_badge = "Γ£à Git repo" if repo_data.get("is_git_repo") else "≡ƒôé Folder"
++                            trunc_badge = " (truncated)" if repo_data.get("truncated") else ""
++                            st.success(f"{git_badge} ΓÇö {repo_data['total_files']} files found{trunc_badge}")
++                        except Exception as ex:
++                            st.error(f"Repo browse error: {ex}")
++                else:
++                    st.warning("Enter a repo path first.")
++
++            if st.session_state.get("last_repo_data"):
++                rd = st.session_state["last_repo_data"]
++                with st.expander(f"≡ƒôï {rd['total_files']} files in repo", expanded=False):
++                    for fp, content_preview in rd.get("files", {}).items():
++                        st.markdown(f'<div class="repo-card"><b>{fp}</b><br><code>{content_preview[:200]}{"..." if len(content_preview) > 200 else ""}</code></div>', unsafe_allow_html=True)
++                    if rd.get("errors"):
++                        for err in rd["errors"]:
++                            st.warning(f"ΓÜá∩╕Å {err}")
++
++        # ΓöÇΓöÇ RIGHT: DEBUG PANEL ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        with shadow_col2:
++            st.subheader("≡ƒÉ¢ Debug With Your Twin")
++            st.caption("Paste your code ΓÇö get syntax checks, AI analysis, execution, and a diff.")
++
++            language = st.selectbox(
++                "Language:",
++                ["Python", "JavaScript", "TypeScript", "Java", "C++", "C", "Go", "Rust", "Bash", "Other"],
++                key="debug_language",
++            )
++            debug_mode = st.radio(
++                "What do you need?",
++                ["≡ƒÉ¢ Find & Fix Bugs", "≡ƒöì Code Review", "ΓÜí Optimize Code", "≡ƒÆ¼ Explain This Code"],
++                key="debug_mode", horizontal=True,
++            )
++            buggy_code = st.text_area(
++                "Paste your code here:", height=220,
++                placeholder="def calculate_total(items):\n    total = 0\n    for i in items\n        total += i['price']\n    return totl",
++                key="buggy_code",
++            )
++            extra_context = st.text_input(
++                "What's the problem? (optional):",
++                placeholder="e.g. Getting KeyError on line 5, or function returns None unexpectedly",
++                key="extra_context",
++            )
++
++            # ΓöÇΓöÇ Execution toggles ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++            exec_col1, exec_col2 = st.columns(2)
++            with exec_col1:
++                run_original = st.checkbox(
++                    "Γû╢∩╕Å Run original code",
++                    value=False, key="run_original",
++                    help="Execute the code as-is before AI analysis (Python/JS/Bash only).",
++                )
++            with exec_col2:
++                run_fixed = st.checkbox(
++                    "Γû╢∩╕Å Run fixed code",
++                    value=False, key="run_fixed",
++                    help="Execute the AI-fixed code after analysis (Python/JS/Bash only).",
++                )
++
++            # Use repo path from the left panel if available
++            use_repo = st.checkbox(
++                "≡ƒôü Include repo context",
++                value=False, key="use_repo_ctx",
++                help="Include files from the repo you browsed on the left as extra context.",
++            )
++            repo_path_for_debug = repo_path_input if use_repo and repo_path_input.strip() else ""
++
++            if st.button("≡ƒæ╛ Activate Shadow Developer", key="run_shadow", type="primary"):
++                if buggy_code.strip():
++                    mode_label = debug_mode.split(" ", 1)[1]
++
++                    with st.spinner("≡ƒæ╛ Shadow Developer analysing your code..."):
++                        try:
++                            payload = {
++                                "user_id": st.session_state.email,
++                                "code": buggy_code,
++                                "language": language,
++                                "mode": mode_label,
++                                "mood": twin_mood,
++                                "extra_context": extra_context or "",
++                                "run_code": run_original,
++                                "run_fixed": run_fixed,
++                                "repo_path": repo_path_for_debug,
++                            }
++                            res = requests.post("http://127.0.0.1:8000/debug_code", json=payload, timeout=60)
++                            data = res.json()
++
++                            # ΓöÇΓöÇ SYNTAX CHECK RESULTS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            syntax = data.get("syntax_check", {})
++                            if syntax.get("errors") or syntax.get("warnings"):
++                                st.markdown("### ≡ƒöì Pre-Analysis Syntax Check")
++                                for err in syntax.get("errors", []):
++                                    st.markdown(f'<div class="syntax-error-card">Γ¥î {err}</div>', unsafe_allow_html=True)
++                                for warn in syntax.get("warnings", []):
++                                    st.markdown(f'<div class="syntax-warn-card">ΓÜá∩╕Å {warn}</div>', unsafe_allow_html=True)
++                            else:
++                                st.success("Γ£à Pre-analysis syntax check passed.")
++
++                            # ΓöÇΓöÇ ORIGINAL EXECUTION RESULTS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            eo = data.get("execution_original", {})
++                            if eo.get("ran"):
++                                st.markdown("### Γû╢∩╕Å Original Code Execution")
++                                exit_icon = "Γ£à" if eo["exit_code"] == 0 else "Γ¥î"
++                                st.markdown(
++                                    f'<div class="exec-card">'
++                                    f'{exit_icon} Exit code: <b>{eo["exit_code"]}</b><br><br>'
++                                    f'<b>STDOUT:</b><pre>{eo["stdout"] or "(empty)"}</pre>'
++                                    f'<b>STDERR:</b><pre>{eo["stderr"] or "(none)"}</pre>'
++                                    f'</div>',
++                                    unsafe_allow_html=True,
++                                )
++                            elif run_original and eo.get("reason"):
++                                st.info(f"Γä╣∩╕Å Execution skipped: {eo['reason']}")
++
++                            # ΓöÇΓöÇ REPO CONTEXT BADGE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            if data.get("repo_context_used"):
++                                st.info(f"≡ƒôü Repo context included: {data.get('repo_files_read', 0)} files read.")
++
++                            # ΓöÇΓöÇ AI ANALYSIS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            st.markdown("### ≡ƒñû AI Analysis")
++                            st.markdown('<div class="debug-result">', unsafe_allow_html=True)
++                            st.markdown(data.get("ai_analysis", "No response."))
++                            st.markdown('</div>', unsafe_allow_html=True)
++
++                            # ΓöÇΓöÇ DIFF VIEW ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            diff_text = data.get("diff", "")
++                            fixed_code = data.get("fixed_code", "")
++                            if fixed_code and "No changes" not in diff_text:
++                                st.markdown("### ≡ƒôè What Changed ΓÇö Diff View")
++                                diff_html = render_diff_html(diff_text)
++                                st.markdown(
++                                    f'<div class="diff-card">{diff_html}</div>',
++                                    unsafe_allow_html=True,
++                                )
++                                # Copy-ready fixed code
++                                with st.expander("≡ƒôï Copy Fixed Code", expanded=False):
++                                    st.code(fixed_code, language=language.lower())
++                            else:
++                                if diff_text:
++                                    st.caption(f"Γä╣∩╕Å {diff_text}")
++
++                            # ΓöÇΓöÇ FIXED CODE EXECUTION RESULTS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            ef = data.get("execution_fixed", {})
++                            if ef.get("ran"):
++                                st.markdown("### Γû╢∩╕Å Fixed Code Execution")
++                                exit_icon = "Γ£à" if ef["exit_code"] == 0 else "Γ¥î"
++                                st.markdown(
++                                    f'<div class="exec-card">'
++                                    f'{exit_icon} Exit code: <b>{ef["exit_code"]}</b><br><br>'
++                                    f'<b>STDOUT:</b><pre>{ef["stdout"] or "(empty)"}</pre>'
++                                    f'<b>STDERR:</b><pre>{ef["stderr"] or "(none)"}</pre>'
++                                    f'</div>',
++                                    unsafe_allow_html=True,
++                                )
++                            elif run_fixed and ef.get("reason"):
++                                st.info(f"Γä╣∩╕Å Fixed execution skipped: {ef['reason']}")
++
++                            # ΓöÇΓöÇ SYNC TO CHAT HISTORY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++                            st.session_state.chat_history.append({
++                                "role": "user",
++                                "content": f"≡ƒæ╛ **Shadow Dev** [{mode_label} | {language}]:\n```\n{buggy_code[:300]}{'...' if len(buggy_code) > 300 else ''}\n```",
++                            })
++                            st.session_state.chat_history.append({
++                                "role": "assistant",
++                                "content": data.get("ai_analysis", ""),
++                            })
++
++                            if st.session_state.get("voice_enabled", True):
++                                speak_text(data.get("ai_analysis", ""))
++
++                        except Exception as ex:
++                            st.error(f"Shadow Developer Error: {str(ex)}")
++                else:
++                    st.warning("Please paste some code first.")
++
++    # ΓöÇΓöÇΓöÇ TAB: STYLE MIRROR ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_mirror:
++        st.markdown("""
++        <div class="mirror-header">
++            <h3>≡ƒ¬₧ Style Mirror ΓÇö Your AI Fashion Critic</h3>
++            <p>Upload a photo of your outfit. Your Twin grades it against your personal style profile
++            and acts as your 24/7 stylist who actually knows your wardrobe.</p>
++        </div>
++        """, unsafe_allow_html=True)
++
++        mirror_col1, mirror_col2 = st.columns([0.45, 0.55])
++
++        with mirror_col1:
++            st.subheader("≡ƒô╕ Upload Your Outfit")
++            outfit_images = st.file_uploader(
++                "Upload 1ΓÇô3 outfit photos", type=["jpg", "jpeg", "png", "webp"],
++                accept_multiple_files=True, key="outfit_uploader",
++            )
++            occasion = st.selectbox(
++                "≡ƒÄ» What's the occasion?",
++                ["casual", "office / work", "date night", "party / nightout",
++                 "gym / workout", "formal / wedding", "beach / vacation", "college / campus", "festival"],
++                key="mirror_occasion",
++            )
++            st.markdown("---")
++            st.subheader("≡ƒº¼ Teach Your Style (optional)")
++            st.caption("Train your twin with style notes so grades become more personalised over time.")
++            style_fact = st.text_area(
++                "Add a style preference:", height=100,
++                placeholder="e.g. I love oversized black hoodies, slim-fit jeans and white sneakers. I avoid bright colours.",
++                key="mirror_style_fact",
++            )
++            if st.button("≡ƒÆ╛ Save Style Preference", key="save_style_pref"):
++                if style_fact.strip():
++                    with st.spinner("Saving style preference..."):
++                        requests.post("http://127.0.0.1:8000/train",
++                                      params={"user_id": st.session_state.email, "details": f"[PERSONAL STYLE] {style_fact.strip()}"})
++                    st.success("Γ£à Style preference saved!")
++                else:
++                    st.warning("Please enter a style preference first.")
++
++            st.markdown("---")
++            st.caption("≡ƒôï Your saved style profile:")
++            try:
++                m_res = requests.get(f"http://127.0.0.1:8000/memories?user_id={st.session_state.email}").json()
++                style_prefs = [(m, mid) for m, mid in zip(m_res["memories"], m_res["ids"]) if "[PERSONAL STYLE]" in m]
++                if style_prefs:
++                    for mem, mid in style_prefs:
++                        preview = mem.replace("[PERSONAL STYLE]", "").strip()[:130]
++                        c1, c2 = st.columns([0.88, 0.12])
++                        with c1:
++                            st.markdown(f'<div class="style-tip-card">≡ƒæù {preview}{"..." if len(preview) >= 130 else ""}</div>', unsafe_allow_html=True)
++                        with c2:
++                            if st.button("≡ƒùæ∩╕Å", key=f"del_style_pref_{mid}"):
++                                requests.delete(f"http://127.0.0.1:8000/memories/{mid}")
++                                st.rerun()
++                else:
++                    st.caption("No style profile yet ΓÇö add some preferences above!")
++            except:
++                pass
++
++        with mirror_col2:
++            st.subheader("≡ƒÄ¿ Fashion Grade")
++            if outfit_images:
++                preview_cols = st.columns(min(len(outfit_images), 3))
++                for idx, img in enumerate(outfit_images[:3]):
++                    with preview_cols[idx]:
++                        st.image(img, use_container_width=True, caption=f"Photo {idx + 1}")
++
++            run_mirror = st.button("≡ƒ¬₧ Grade My Outfit", key="run_style_mirror", type="primary", disabled=not outfit_images)
++            if not outfit_images:
++                st.info("≡ƒæå Upload an outfit photo on the left to get started.")
++
++            if run_mirror and outfit_images:
++                with st.spinner("≡ƒ¬₧ Your Twin is analysing your outfit..."):
++                    try:
++                        files = [("files", (img.name, img.getvalue(), img.type)) for img in outfit_images[:3]]
++                        res = requests.post("http://127.0.0.1:8000/style_mirror",
++                                            params={"user_id": st.session_state.email, "mood": twin_mood, "occasion": occasion},
++                                            files=files)
++                        answer = res.json().get("answer", "No response from Style Mirror.")
++                        import re
++                        score_match = re.search(r"(\d+(?:\.\d+)?)/10", answer)
++                        if score_match:
++                            st.markdown(f'<div style="text-align:center"><span class="score-badge">Γ¡É {score_match.group(0)}</span></div>', unsafe_allow_html=True)
++
++                        st.markdown('<div class="mirror-result">', unsafe_allow_html=True)
++                        st.markdown(answer)
++                        st.markdown('</div>', unsafe_allow_html=True)
++
++                        if "style_mirror_history" not in st.session_state:
++                            st.session_state.style_mirror_history = []
++                        st.session_state.style_mirror_history.append({
++                            "occasion": occasion,
++                            "score": score_match.group(0) if score_match else "?/10",
++                            "report": answer,
++                        })
++                        st.session_state.chat_history.append({"role": "user", "content": f"≡ƒ¬₧ **Style Mirror** [{occasion}]: [outfit photo(s)]"})
++                        st.session_state.chat_history.append({"role": "assistant", "content": answer})
++                        if st.session_state.get("voice_enabled", True):
++                            speak_text(answer)
++                    except Exception as ex:
++                        st.error(f"Style Mirror Error: {str(ex)}")
++
++            history = st.session_state.get("style_mirror_history", [])
++            if len(history) > 1:
++                st.markdown("---")
++                st.subheader("≡ƒôè This Session's Grades")
++                for h in reversed(history[:-1]):
++                    st.markdown(f'<div class="style-tip-card">≡ƒÄ» <b>{h["occasion"].capitalize()}</b> ΓÇö Score: <b>{h["score"]}</b></div>', unsafe_allow_html=True)
++
++    # ΓöÇΓöÇΓöÇ TAB: TWIN NEWSROOM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_news:
++        st.markdown("""
++        <div class="newsroom-header">
++            <h3>≡ƒô░ Twin Newsroom ΓÇö Your Personalised Morning Briefing</h3>
++            <p>Your Twin scans live news about your tech stack, location, and interests ΓÇö
++            then delivers it in your voice and mood. Hit the button every morning.</p>
++        </div>
++        """, unsafe_allow_html=True)
++
++        news_col1, news_col2 = st.columns([0.38, 0.62])
++
++        with news_col1:
++            st.subheader("ΓÜÖ∩╕Å Briefing Settings")
++
++            st.caption("≡ƒôì Locations to track")
++            location_input = st.text_input(
++                "Cities / Regions (comma-separated):",
++                value=st.session_state.get("newsroom_locations", "Delhi, India"),
++                placeholder="Delhi, Patna, India",
++                key="newsroom_loc_input",
++            )
++            st.session_state["newsroom_locations"] = location_input
++
++            st.caption("≡ƒöû Extra topics to follow (optional)")
++            topics_input = st.text_input(
++                "Topics (comma-separated):",
++                value=st.session_state.get("newsroom_topics", ""),
++                placeholder="startups, open source, cloud computing",
++                key="newsroom_topics_input",
++            )
++            st.session_state["newsroom_topics"] = topics_input
++
++            st.markdown("---")
++
++            news_mood = st.radio(
++                "≡ƒôú Briefing Tone",
++                ["Professional", "Natural", "Sarcastic"],
++                index=["Professional", "Natural", "Sarcastic"].index(
++                    st.session_state.get("newsroom_mood", "Natural")
++                ),
++                key="newsroom_mood_radio",
++                horizontal=True,
++            )
++            st.session_state["newsroom_mood"] = news_mood
++
++            st.markdown("---")
++            st.caption("≡ƒºá Tech stack is auto-detected from your Twin's memory. "
++                       "Train more memories in Brain Explorer to improve relevance.")
++
++            if st.session_state.get("last_briefing_stack"):
++                st.caption("Last detected stack:")
++                stack_html = "".join(
++                    f'<span class="tech-tag">{t}</span>'
++                    for t in st.session_state["last_briefing_stack"]
++                )
++                st.markdown(stack_html, unsafe_allow_html=True)
++
++            st.markdown("---")
++
++            run_briefing = st.button(
++                "ΓÿÇ∩╕Å Get My Morning Report",
++                key="run_morning_briefing",
++                type="primary",
++                use_container_width=True,
++            )
++
++            if st.session_state.get("last_briefing_text"):
++                st.markdown("---")
++                st.caption("≡ƒôï Briefing history this session:")
++                history_count = len(st.session_state.get("newsroom_history", []))
++                st.markdown(
++                    f'<span class="news-meta-badge">≡ƒù₧∩╕Å {history_count} briefing(s) generated</span>',
++                    unsafe_allow_html=True,
++                )
++
++        with news_col2:
++            st.subheader("≡ƒù₧∩╕Å Your Briefing")
++
++            if st.session_state.get("last_briefing_text") and not run_briefing:
++                last = st.session_state["last_briefing_text"]
++                st.markdown('<div class="briefing-card">', unsafe_allow_html=True)
++                st.markdown(last)
++                st.markdown("</div>", unsafe_allow_html=True)
++
++                meta_html = ""
++                if st.session_state.get("last_briefing_articles"):
++                    meta_html += f'<span class="news-meta-badge">≡ƒôí {st.session_state["last_briefing_articles"]} articles scanned</span>'
++                if st.session_state.get("last_briefing_mood"):
++                    meta_html += f'<span class="news-meta-badge">≡ƒÄ¡ {st.session_state["last_briefing_mood"]} tone</span>'
++                if meta_html:
++                    st.markdown(meta_html, unsafe_allow_html=True)
++
++                if st.session_state.get("voice_enabled", True):
++                    if st.button("≡ƒöè Read Briefing Aloud", key="read_briefing"):
++                        speak_text(st.session_state["last_briefing_text"])
++            else:
++                if not run_briefing:
++                    st.info("≡ƒæê Configure your settings and hit **ΓÿÇ∩╕Å Get My Morning Report** to start.")
++
++            if run_briefing:
++                locations = [l.strip() for l in location_input.split(",") if l.strip()] or ["India"]
++                topics    = [t.strip() for t in topics_input.split(",") if t.strip()]
++
++                with st.spinner("≡ƒôí Scanning live news across your world..."):
++                    try:
++                        payload = {
++                            "user_id": st.session_state.email,
++                            "mood": news_mood,
++                            "locations": locations,
++                            "extra_topics": topics,
++                        }
++                        res = requests.post(
++                            "http://127.0.0.1:8000/morning_briefing",
++                            json=payload,
++                            timeout=60,
++                        )
++                        data = res.json()
++                        briefing_text = data.get("briefing", "No briefing returned.")
++                        articles_found = data.get("articles_found", 0)
++                        tech_stack = data.get("tech_stack_detected", [])
++
++                        st.session_state["last_briefing_text"]     = briefing_text
++                        st.session_state["last_briefing_articles"] = articles_found
++                        st.session_state["last_briefing_mood"]     = news_mood
++                        st.session_state["last_briefing_stack"]    = tech_stack
++
++                        if "newsroom_history" not in st.session_state:
++                            st.session_state["newsroom_history"] = []
++                        st.session_state["newsroom_history"].append({
++                            "mood": news_mood,
++                            "articles": articles_found,
++                            "stack": tech_stack,
++                            "preview": briefing_text[:120] + "...",
++                        })
++
++                        meta_html = f'<span class="news-meta-badge">≡ƒôí {articles_found} articles scanned</span>'
++                        meta_html += f'<span class="news-meta-badge">≡ƒÄ¡ {news_mood} tone</span>'
++                        if tech_stack:
++                            meta_html += " ".join(f'<span class="tech-tag">{t}</span>' for t in tech_stack)
++                        st.markdown(meta_html, unsafe_allow_html=True)
++                        st.markdown("")
++
++                        st.markdown('<div class="briefing-card">', unsafe_allow_html=True)
++                        st.markdown(briefing_text)
++                        st.markdown("</div>", unsafe_allow_html=True)
++
++                        st.session_state.chat_history.append({
++                            "role": "user",
++                            "content": f"ΓÿÇ∩╕Å **Morning Briefing** [{news_mood} | {', '.join(locations)}]",
++                        })
++                        st.session_state.chat_history.append({
++                            "role": "assistant",
++                            "content": briefing_text,
++                        })
++
++                        if st.session_state.get("voice_enabled", True):
++                            speak_text(briefing_text)
++
++                    except requests.exceptions.Timeout:
++                        st.error("ΓÅ░ Request timed out. The news fetch can take up to 30s ΓÇö try again.")
++                    except Exception as ex:
++                        st.error(f"Newsroom Error: {str(ex)}")
++
++
++    # ΓöÇΓöÇΓöÇ TAB: ANALYTICS DASHBOARD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_analytics:
++        import plotly.express as px
++        import plotly.graph_objects as go
++        import pandas as pd
++
++        st.markdown("""
++        <div style='background:linear-gradient(135deg,rgba(56,189,248,0.1),rgba(99,102,241,0.08));
++        border:1px solid rgba(56,189,248,0.2);border-radius:16px;padding:18px 24px;margin-bottom:20px'>
++        <h3 style='color:#38bdf8;margin:0 0 4px 0'>≡ƒôè Twin Analytics</h3>
++        <p style='color:#64748b;margin:0;font-size:0.88rem'>Insights about your memories, chat patterns and knowledge base.</p>
++        </div>""", unsafe_allow_html=True)
++
++        try:
++            ana_res = requests.get(f"http://127.0.0.1:8000/analytics?user_id={st.session_state.email}").json()
++            counts  = ana_res.get("counts", {})
++
++            sess_res = requests.get("http://127.0.0.1:8000/chat/sessions",
++                                    params={"user_id": st.session_state.email}, timeout=4).json()
++            sessions = sess_res.get("sessions", [])
++            total_msgs = sum(len(s.get("messages", [])) for s in sessions)
++            total_user = sum(sum(1 for m in s.get("messages",[]) if m["role"]=="user") for s in sessions)
++
++            k1, k2, k3, k4 = st.columns(4)
++            kpi_style = "background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:16px;text-align:center"
++            with k1:
++                st.markdown(f"<div style='{kpi_style}'><div style='font-size:2rem;font-weight:900;color:#38bdf8'>{sum(counts.values())}</div><div style='color:#64748b;font-size:0.8rem'>Total Memories</div></div>", unsafe_allow_html=True)
++            with k2:
++                st.markdown(f"<div style='{kpi_style}'><div style='font-size:2rem;font-weight:900;color:#a78bfa'>{len(sessions)}</div><div style='color:#64748b;font-size:0.8rem'>Conversations</div></div>", unsafe_allow_html=True)
++            with k3:
++                st.markdown(f"<div style='{kpi_style}'><div style='font-size:2rem;font-weight:900;color:#34d399'>{total_user}</div><div style='color:#64748b;font-size:0.8rem'>Questions Asked</div></div>", unsafe_allow_html=True)
++            with k4:
++                st.markdown(f"<div style='{kpi_style}'><div style='font-size:2rem;font-weight:900;color:#fb923c'>{len(counts)}</div><div style='color:#64748b;font-size:0.8rem'>Memory Categories</div></div>", unsafe_allow_html=True)
++
++            st.markdown("<br>", unsafe_allow_html=True)
++            col_l, col_r = st.columns(2)
++
++            with col_l:
++                if counts:
++                    fig_pie = px.pie(
++                        names=list(counts.keys()), values=list(counts.values()),
++                        title="≡ƒºá Memory by Category",
++                        color_discrete_sequence=px.colors.sequential.Plasma_r,
++                        hole=0.45
++                    )
++                    fig_pie.update_layout(
++                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
++                        font_color="#e2e8f0", title_font_size=14,
++                        margin=dict(t=40, b=10, l=10, r=10),
++                        legend=dict(font=dict(color="#94a3b8"))
++                    )
++                    st.plotly_chart(fig_pie, use_container_width=True)
++                else:
++                    st.info("No memories yet ΓÇö add some in Brain Explorer!")
++
++            with col_r:
++                if sessions:
++                    sess_labels = [s.get("title","")[:20]+"ΓÇª" for s in sessions[:10]]
++                    sess_counts = [len(s.get("messages",[])) for s in sessions[:10]]
++                    fig_bar = go.Figure(go.Bar(
++                        x=sess_counts, y=sess_labels, orientation="h",
++                        marker_color="#38bdf8", marker_line_width=0,
++                        text=sess_counts, textposition="outside"
++                    ))
++                    fig_bar.update_layout(
++                        title="≡ƒÆ¼ Messages per Conversation",
++                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
++                        font_color="#e2e8f0", title_font_size=14,
++                        margin=dict(t=40, b=10, l=10, r=10),
++                        xaxis=dict(showgrid=False, color="#475569"),
++                        yaxis=dict(color="#94a3b8"),
++                        height=300
++                    )
++                    st.plotly_chart(fig_bar, use_container_width=True)
++                else:
++                    st.info("No conversations yet ΓÇö start chatting!")
++
++        except Exception as ex:
++            st.error(f"Analytics error: {ex}")
++
++    # ΓöÇΓöÇΓöÇ TAB: GOALS & HABITS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_goals:
++        st.markdown("""
++        <div style='background:linear-gradient(135deg,rgba(52,211,153,0.1),rgba(16,185,129,0.07));
++        border:1px solid rgba(52,211,153,0.25);border-radius:16px;padding:18px 24px;margin-bottom:20px'>
++        <h3 style='color:#34d399;margin:0 0 4px 0'>≡ƒÄ» Goals & Habits Tracker</h3>
++        <p style='color:#64748b;margin:0;font-size:0.88rem'>Set goals, track progress, and let your Twin keep you accountable.</p>
++        </div>""", unsafe_allow_html=True)
++
++        g_left, g_right = st.columns([0.38, 0.62])
++
++        with g_left:
++            st.markdown("#### Γ₧ò Add New Goal")
++            new_goal = st.text_area("Goal description", placeholder="e.g. Run 5km every day", height=90, key="new_goal_text")
++            goal_cat = st.selectbox("Category", ["Health & Fitness", "Learning", "Career", "Personal", "Finance", "Relationships", "Other"], key="goal_cat")
++            if st.button("≡ƒÄ» Add Goal", key="add_goal_btn", use_container_width=True):
++                if new_goal.strip():
++                    try:
++                        requests.post("http://127.0.0.1:8000/goals/add", json={
++                            "user_id": st.session_state.email,
++                            "goal": new_goal.strip(),
++                            "category": goal_cat
++                        })
++                        st.success("Γ£à Goal added!")
++                        st.rerun()
++                    except Exception as ex:
++                        st.error(f"Error: {ex}")
++                else:
++                    st.warning("Please enter a goal first.")
++
++        with g_right:
++            st.markdown("#### ≡ƒôï Your Goals")
++            try:
++                goals_res = requests.get(f"http://127.0.0.1:8000/goals?user_id={st.session_state.email}", timeout=4).json()
++                goals_list = goals_res.get("goals", [])
++
++                cat_icons = {"Health & Fitness":"≡ƒÆ¬","Learning":"≡ƒôÜ","Career":"≡ƒÆ╝","Personal":"≡ƒî▒","Finance":"≡ƒÆ░","Relationships":"Γ¥ñ∩╕Å","Other":"≡ƒÄ»"}
++
++                if not goals_list:
++                    st.info("No goals yet ΓÇö add your first goal on the left!")
++                else:
++                    for goal in goals_list:
++                        gid      = goal["_id"]
++                        gtitle   = goal.get("goal","")
++                        gcat     = goal.get("category","Other")
++                        gprog    = goal.get("progress", 0)
++                        gdone    = goal.get("completed", False)
++                        icon     = cat_icons.get(gcat, "≡ƒÄ»")
++                        bar_col  = "#34d399" if gdone else "#38bdf8"
++                        done_badge = "<span style='background:#34d399;color:#0f172a;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:700'>Γ£ô DONE</span>" if gdone else ""
++
++                        st.markdown(f"""
++                        <div style='background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.18);
++                        border-left:4px solid {bar_col};border-radius:12px;padding:14px 16px;margin-bottom:10px'>
++                            <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>
++                                <span style='color:#e2e8f0;font-weight:600'>{icon} {gtitle}</span>
++                                {done_badge}
++                            </div>
++                            <div style='background:rgba(255,255,255,0.08);border-radius:6px;height:8px;overflow:hidden'>
++                                <div style='background:linear-gradient(90deg,{bar_col},{bar_col}99);height:100%;width:{min(gprog,100)}%;border-radius:6px;transition:width 0.4s'></div>
++                            </div>
++                            <div style='display:flex;justify-content:space-between;margin-top:4px'>
++                                <span style='color:#64748b;font-size:0.72rem'>{gcat}</span>
++                                <span style='color:{bar_col};font-size:0.72rem;font-weight:700'>{gprog}%</span>
++                            </div>
++                        </div>""", unsafe_allow_html=True)
++
++                        with st.expander(f"Update ┬╖ {gtitle[:30]}ΓÇª" if len(gtitle) > 30 else f"Update ┬╖ {gtitle}"):
++                            new_prog = st.slider("Progress %", 0, 100, gprog, key=f"prog_{gid}")
++                            note_txt = st.text_input("Add a note (optional)", key=f"note_{gid}")
++                            ucol1, ucol2 = st.columns(2)
++                            with ucol1:
++                                if st.button("≡ƒÆ╛ Save", key=f"save_goal_{gid}", use_container_width=True):
++                                    requests.post("http://127.0.0.1:8000/goals/update", json={
++                                        "goal_id": gid, "progress": new_prog,
++                                        "note": note_txt
++                                    })
++                                    st.rerun()
++                            with ucol2:
++                                if st.button("≡ƒùæ∩╕Å Delete", key=f"del_goal_{gid}", use_container_width=True):
++                                    requests.delete(f"http://127.0.0.1:8000/goals/{gid}",
++                                                    params={"user_id": st.session_state.email})
++                                    st.rerun()
++            except Exception as ex:
++                st.error(f"Error loading goals: {ex}")
++
++    # ΓöÇΓöÇΓöÇ TAB: CALENDAR ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    with tab_calendar:
++        import datetime as _cal_dt
++
++        st.markdown("""
++        <div style='background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(249,115,22,0.08));
++        border:1px solid rgba(251,191,36,0.25);border-radius:16px;padding:18px 24px;margin-bottom:20px'>
++        <h3 style='color:#fbbf24;margin:0 0 4px 0'>≡ƒôà Smart Calendar</h3>
++        <p style='color:#64748b;margin:0;font-size:0.88rem'>Add events, get reminders, and let your Twin manage your schedule.</p>
++        </div>""", unsafe_allow_html=True)
++
++        cal_left, cal_right = st.columns([0.38, 0.62])
++
++        with cal_left:
++            st.markdown("#### Γ₧ò Add Event")
++            ev_title = st.text_input("Event title", placeholder="Team meeting", key="ev_title")
++            ev_date  = st.date_input("Date", value=_cal_dt.date.today(), key="ev_date")
++            ev_time  = st.time_input("Time", value=_cal_dt.time(9, 0), key="ev_time")
++            ev_desc  = st.text_area("Description (optional)", height=70, key="ev_desc")
++            ev_color = st.color_picker("Color tag", value="#38bdf8", key="ev_color")
++            if st.button("≡ƒôà Add Event", key="add_ev_btn", use_container_width=True):
++                if ev_title.strip():
++                    try:
++                        requests.post("http://127.0.0.1:8000/calendar/add", json={
++                            "user_id": st.session_state.email,
++                            "title": ev_title.strip(),
++                            "date": str(ev_date),
++                            "time": str(ev_time),
++                            "description": ev_desc,
++                            "color": ev_color,
++                        })
++                        st.success("Γ£à Event added!")
++                        st.rerun()
++                    except Exception as ex:
++                        st.error(f"Error: {ex}")
++                else:
++                    st.warning("Please enter an event title.")
++
++        with cal_right:
++            st.markdown("#### ≡ƒùô∩╕Å Upcoming Events")
++            try:
++                ev_res  = requests.get("http://127.0.0.1:8000/calendar/events",
++                                       params={"user_id": st.session_state.email}, timeout=4).json()
++                ev_list = ev_res.get("events", [])
++
++                today_str = str(_cal_dt.date.today())
++                upcoming  = [e for e in ev_list if e.get("date","") >= today_str]
++                past      = [e for e in ev_list if e.get("date","") < today_str]
++
++                if not ev_list:
++                    st.info("No events yet ΓÇö add your first event on the left!")
++                else:
++                    today_evs = [e for e in upcoming if e.get("date","") == today_str]
++                    if today_evs:
++                        st.markdown(f"<div style='background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;margin-bottom:12px'><span style='color:#fbbf24;font-weight:700'>≡ƒôî Today ΓÇö {_cal_dt.date.today().strftime('%d %b %Y')}</span></div>", unsafe_allow_html=True)
++                        for ev in today_evs:
++                            st.markdown(f"""<div style='border-left:4px solid {ev.get("color","#38bdf8")};padding:8px 14px;margin-bottom:6px;background:rgba(255,255,255,0.04);border-radius:0 8px 8px 0'>
++                            <span style='color:#e2e8f0;font-weight:600'>{ev["title"]}</span>
++                            <span style='color:#64748b;font-size:0.78rem;margin-left:8px'>≡ƒòÉ {ev.get("time","")}</span>
++                            </div>""", unsafe_allow_html=True)
++
++                    if upcoming:
++                        st.markdown("**ΓÅ¡ Upcoming**")
++                        for ev in upcoming[:15]:
++                            ev_id      = ev["_id"]
++                            ev_date_fmt = _cal_dt.datetime.strptime(ev["date"], "%Y-%m-%d").strftime("%d %b %Y")
++                            is_today   = ev["date"] == today_str
++                            ev_col, del_col = st.columns([0.85, 0.15])
++                            with ev_col:
++                                st.markdown(f"""<div style='border-left:4px solid {ev.get("color","#38bdf8")};
++                                padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,0.04);border-radius:0 10px 10px 0'>
++                                <div style='color:#e2e8f0;font-weight:600'>{"≡ƒôî " if is_today else ""}{ev["title"]}</div>
++                                <div style='color:#64748b;font-size:0.75rem'>≡ƒôà {ev_date_fmt} {"at "+ev.get("time","") if ev.get("time") else ""}</div>
++                                {"<div style='color:#94a3b8;font-size:0.78rem;margin-top:4px'>"+ev["description"]+"</div>" if ev.get("description") else ""}
++                                </div>""", unsafe_allow_html=True)
++                            with del_col:
++                                st.markdown("<div style='padding-top:8px'>", unsafe_allow_html=True)
++                                if st.button("≡ƒùæ∩╕Å", key=f"del_ev_{ev_id}"):
++                                    requests.delete(f"http://127.0.0.1:8000/calendar/event/{ev_id}",
++                                                    params={"user_id": st.session_state.email})
++                                    st.rerun()
++                                st.markdown("</div>", unsafe_allow_html=True)
++
++                    if past:
++                        with st.expander(f"≡ƒôü Past events ({len(past)})"):
++                            for ev in past[-10:]:
++                                ev_date_fmt = _cal_dt.datetime.strptime(ev["date"], "%Y-%m-%d").strftime("%d %b %Y")
++                                st.markdown(f"""<div style='border-left:3px solid rgba(100,116,139,0.5);
++                                padding:8px 12px;margin-bottom:4px;opacity:0.6'>
++                                <span style='color:#94a3b8;font-size:0.85rem'>{ev["title"]} ΓÇö {ev_date_fmt}</span>
++                                </div>""", unsafe_allow_html=True)
++
++            except Exception as ex:
++                st.error(f"Error loading events: {ex}")
++
++# end layout
+\ No newline at end of file
