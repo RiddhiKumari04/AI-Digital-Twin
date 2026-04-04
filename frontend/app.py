@@ -1270,7 +1270,7 @@ if not st.session_state.logged_in:
         if act == "login":
             try:
                 r = requests.get("https://ai-digital-twin-o35j.onrender.com/login",
-                                  params={"email": _email.strip(), "password": _pwd}, timeout=10)
+                                  params={"email": _email.strip(), "password": _pwd}, timeout=60)
                 if r.status_code == 200:
                     data = r.json()
                     import uuid as _u
@@ -1305,7 +1305,7 @@ if not st.session_state.logged_in:
         elif act == "register":
             try:
                 r = requests.post("https://ai-digital-twin-o35j.onrender.com/register",
-                                   json={"name": _name.strip(), "email": _email.strip(), "password": _pwd}, timeout=10)
+                                   json={"name": _name.strip(), "email": _email.strip(), "password": _pwd}, timeout=60)
                 if r.status_code == 200:
                     st.session_state.auth_success = "Account created! Switch to Sign In."
                     st.session_state.auth_error   = ""
@@ -1334,7 +1334,7 @@ if not st.session_state.logged_in:
         elif act == "otp_verify":
             try:
                 r = requests.post("https://ai-digital-twin-o35j.onrender.com/login_otp/verify",
-                                   params={"email": _email.strip(), "otp": _code.strip()}, timeout=10)
+                                   params={"email": _email.strip(), "otp": _code.strip()}, timeout=60)
                 if r.status_code == 200:
                     data = r.json()
                     import uuid as _u2
@@ -1384,7 +1384,7 @@ if not st.session_state.logged_in:
                 # ── FIX: always get email from query param (JS now sends it) ──
                 _fp_email_use = _email.strip() or st.session_state.get("fp_email", "").strip()
                 r = requests.post("https://ai-digital-twin-o35j.onrender.com/forgot_password/verify_otp",
-                                   params={"email": _fp_email_use, "otp": _otp.strip()}, timeout=10)
+                                   params={"email": _fp_email_use, "otp": _otp.strip()}, timeout=60)
                 if r.status_code == 200:
                     st.session_state["fp_email"]   = _fp_email_use
                     st.session_state["fp_otp_val"] = _otp.strip()
@@ -1402,7 +1402,7 @@ if not st.session_state.logged_in:
                 r = requests.post("https://ai-digital-twin-o35j.onrender.com/forgot_password/reset",
                                    json={"email": _fp_email_rst,
                                          "otp":   _fp_otp_rst,
-                                         "new_password": _newpwd}, timeout=10)
+                                         "new_password": _newpwd}, timeout=60)
                 if r.status_code == 200:
                     st.session_state["fp_step"]      = None
                     st.session_state["fp_email"]     = ""
