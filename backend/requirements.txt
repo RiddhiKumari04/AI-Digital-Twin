@@ -5,3 +5,5 @@ python-dotenv
 pandas
 motor
 pydantic
+httpx
+email-validator
