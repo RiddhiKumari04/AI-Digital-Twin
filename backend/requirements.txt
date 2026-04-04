@@ -1,9 +1,23 @@
+# Web Server & Framework
 fastapi
 uvicorn
-google-generativeai
-python-dotenv
-pandas
-motor
-pydantic
+python-multipart
 httpx
+pydantic
 email-validator
+
+# AI & LLM
+google-generativeai
+langchain
+langchain-google-genai
+python-dotenv
+
+# Database & Vector Store
+motor
+pymongo
+chromadb
+sentence-transformers
+
+# Data Processing
+pandas
+numpy
