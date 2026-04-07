@@ -46,7 +46,7 @@ app.add_middleware(
 )
 
 # --- DATABASE SETUP ---
-MONGO_URL = "mongodb+srv://admin:<db_password>@twinx.wzsopcx.mongodb.net/?appName=TwinX"
+MONGO_URL = os.getenv("MONGO_URI", "mongodb+srv://admin:admin@twinx.wzsopcx.mongodb.net/?appName=TwinX")
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client["twin_database"]
 users_collection = db["users"]

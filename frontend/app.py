@@ -5,6 +5,12 @@ from streamlit_mic_recorder import speech_to_text
 import threading
 import time
 from streamlit.runtime.scriptrunner import add_script_run_ctx
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="AI Digital Twin Pro", layout="wide", initial_sidebar_state="expanded")
 
@@ -423,14 +429,14 @@ input:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
 
   <div id="mainBlock">
     <div class="tabs">
-      <button class="tab active" id="tabLogin"    onclick="switchTab('login')">Sign in</button>
-      <button class="tab"         id="tabRegister" onclick="switchTab('register')">Create account</button>
+      <button class="tab active" id="tabLogin">Sign in</button>
+      <button class="tab"         id="tabRegister">Create account</button>
     </div>
 
     <div class="panel active" id="panelLogin">
       <div class="method-row">
-        <button class="method-btn active" id="mPwd" onclick="switchMethod('pwd')">Password</button>
-        <button class="method-btn"         id="mOtp" onclick="switchMethod('otp')">Email code</button>
+        <button class="method-btn active" id="mPwd">Password</button>
+        <button class="method-btn"         id="mOtp">Email code</button>
       </div>
 
       <div id="pwdFlow">
@@ -444,9 +450,9 @@ input:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
           </span>
         </div>
         <div class="forgot"><a onclick="showFP1()">Forgot password?</a></div>
-        <button class="btn" onclick="submitLogin()">Continue</button>
+        <button class="btn" id="loginBtn">Continue</button>
         <div class="divider"><div class="divider-line"></div><span class="divider-text">or</span><div class="divider-line"></div></div>
-        <button class="g-btn" onclick="startGoogle()">
+        <button class="g-btn" id="googleBtn1">
           <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
             <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.859-3.048.859-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
@@ -499,9 +505,9 @@ input:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </span>
       </div>
-      <button class="btn" onclick="submitRegister()" style="margin-top:8px">Create account</button>
+      <button class="btn" id="registerBtn" style="margin-top:8px">Create account</button>
       <div class="divider"><div class="divider-line"></div><span class="divider-text">or</span><div class="divider-line"></div></div>
-      <button class="g-btn" onclick="startGoogle()">
+      <button class="g-btn" id="googleBtn2">
         <svg width="15" height="15" viewBox="0 0 18 18" fill="none">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
           <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.859-3.048.859-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
@@ -519,6 +525,8 @@ input:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
 
 <script>
 var STATE = {};
+var BACKEND_URL = "{BACKEND_URL}";
+
 
 function togglePassword(id) {
   var x = document.getElementById(id);
@@ -582,7 +590,7 @@ function post(action, fields) {
 }
 
 function startGoogle() {
-  fetch('https://ai-digital-twin-o35j.onrender.com/auth/google/start')
+  fetch(`${BACKEND_URL}/auth/google/start`)
     .then(r => r.json())
     .then(data => {
       if (data.url) {
@@ -647,12 +655,54 @@ function submitFP3() {
   if (np!==cp){showAlert('err','Passwords do not match.');return;}
   post('fp_reset',{newpwd:np});
 }
+
+// Add event listeners after DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Tab buttons
+  document.getElementById('tabLogin').addEventListener('click', function() { switchTab('login'); });
+  document.getElementById('tabRegister').addEventListener('click', function() { switchTab('register'); });
+  
+  // Method buttons
+  document.getElementById('mPwd').addEventListener('click', function() { switchMethod('pwd'); });
+  document.getElementById('mOtp').addEventListener('click', function() { switchMethod('otp'); });
+  
+  // Login/Register buttons
+  document.getElementById('loginBtn').addEventListener('click', submitLogin);
+  document.getElementById('registerBtn').addEventListener('click', submitRegister);
+  
+  // Google buttons
+  document.getElementById('googleBtn1').addEventListener('click', startGoogle);
+  document.getElementById('googleBtn2').addEventListener('click', startGoogle);
+  
+  // Keydown events
+  document.getElementById('regConfPwd').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitRegister();
+  });
+  document.getElementById('loginPwd').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitLogin();
+  });
+  document.getElementById('otpCode').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitOTPVerify();
+  });
+});
+
+// Also try immediately in case DOMContentLoaded doesn't fire
+try {
+  document.getElementById('tabLogin').addEventListener('click', function() { switchTab('login'); });
+  document.getElementById('tabRegister').addEventListener('click', function() { switchTab('register'); });
+  document.getElementById('mPwd').addEventListener('click', function() { switchMethod('pwd'); });
+  document.getElementById('mOtp').addEventListener('click', function() { switchMethod('otp'); });
+  document.getElementById('loginBtn').addEventListener('click', submitLogin);
+  document.getElementById('registerBtn').addEventListener('click', submitRegister);
+  document.getElementById('googleBtn1').addEventListener('click', startGoogle);
+  document.getElementById('googleBtn2').addEventListener('click', startGoogle);
+} catch(e) {}
 </script>
 </body>
 </html>"""
 
 
-def _auth_card_with_state(err="", ok="", fp_step="", fp_email="", otp_sent=False, otp_email=""):
+def _auth_card_with_state(err="", ok="", fp_step="", fp_email="", otp_sent=False, otp_email="", backend_url="http://localhost:8000"):
     state_js = (
         "STATE = {"
         f'"err":{repr(err)},"ok":{repr(ok)},'
@@ -681,7 +731,9 @@ def _auth_card_with_state(err="", ok="", fp_step="", fp_email="", otp_sent=False
         "document.getElementById('otpEmailDisplay').textContent=STATE.otp_email;}"
         "})();"
     )
-    return AUTH_CARD_HTML.replace("var STATE = {};", "var STATE = {};\n" + state_js)
+    html = AUTH_CARD_HTML.replace("var STATE = {};", "var STATE = {};\n" + state_js)
+    html = html.replace("{BACKEND_URL}", backend_url)
+    return html
 
 
 def speak_text(text):
@@ -1226,7 +1278,7 @@ if st.session_state.logged_in:
         first_user = next((m["content"] for m in hist if m["role"] == "user"), "New Chat")
         title = first_user[:48] + ("…" if len(first_user) > 48 else "")
         try:
-            requests.post("https://ai-digital-twin-o35j.onrender.com/chat/save", json={
+            requests.post(f"{BACKEND_URL}/chat/save", json={
                 "user_id": st.session_state.email,
                 "session_id": st.session_state.current_session_id,
                 "messages": hist, "timestamps": ts, "title": title,
@@ -1238,7 +1290,7 @@ if st.session_state.logged_in:
     if st.session_state.get("load_photo_on_next_render"):
         st.session_state.load_photo_on_next_render = False
         try:
-            _pic_lazy = requests.get("https://ai-digital-twin-o35j.onrender.com/profile/get_photo",
+            _pic_lazy = requests.get(f"{BACKEND_URL}/profile/get_photo",
                                      params={"user_id": st.session_state.email}, timeout=2).json()
             st.session_state.profile_pic_b64 = _pic_lazy.get("pic_b64")
         except Exception:
@@ -1269,7 +1321,7 @@ if not st.session_state.logged_in:
 
         if act == "login":
             try:
-                r = requests.get("https://ai-digital-twin-o35j.onrender.com/login",
+                r = requests.get(f"{BACKEND_URL}/login",
                                   params={"email": _email.strip(), "password": _pwd}, timeout=60)
                 if r.status_code == 200:
                     data = r.json()
@@ -1304,7 +1356,7 @@ if not st.session_state.logged_in:
 
         elif act == "register":
             try:
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/register",
+                r = requests.post(f"{BACKEND_URL}/register",
                                    json={"name": _name.strip(), "email": _email.strip(), "password": _pwd}, timeout=60)
                 if r.status_code == 200:
                     st.session_state.auth_success = "Account created! Switch to Sign In."
@@ -1319,7 +1371,7 @@ if not st.session_state.logged_in:
 
         elif act == "otp_send":
             try:
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/login_otp/send",
+                r = requests.post(f"{BACKEND_URL}/login_otp/send",
                                    params={"email": _email.strip()}, timeout=15)
                 if r.status_code == 200:
                     st.session_state.otp_sent        = True
@@ -1333,7 +1385,7 @@ if not st.session_state.logged_in:
 
         elif act == "otp_verify":
             try:
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/login_otp/verify",
+                r = requests.post(f"{BACKEND_URL}/login_otp/verify",
                                    params={"email": _email.strip(), "otp": _code.strip()}, timeout=60)
                 if r.status_code == 200:
                     data = r.json()
@@ -1367,7 +1419,7 @@ if not st.session_state.logged_in:
         elif act == "fp_send":
             try:
                 _fp_em = _email.strip()
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/forgot_password/send_otp",
+                r = requests.post(f"{BACKEND_URL}/forgot_password/send_otp",
                                    params={"email": _fp_em}, timeout=15)
                 if r.status_code == 200:
                     st.session_state["fp_email"]     = _fp_em
@@ -1383,7 +1435,7 @@ if not st.session_state.logged_in:
             try:
                 # ── FIX: always get email from query param (JS now sends it) ──
                 _fp_email_use = _email.strip() or st.session_state.get("fp_email", "").strip()
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/forgot_password/verify_otp",
+                r = requests.post(f"{BACKEND_URL}/forgot_password/verify_otp",
                                    params={"email": _fp_email_use, "otp": _otp.strip()}, timeout=60)
                 if r.status_code == 200:
                     st.session_state["fp_email"]   = _fp_email_use
@@ -1399,7 +1451,7 @@ if not st.session_state.logged_in:
             try:
                 _fp_email_rst = st.session_state.get("fp_email", "").strip() or _email.strip()
                 _fp_otp_rst   = st.session_state.get("fp_otp_val", "").strip() or _otp.strip()
-                r = requests.post("https://ai-digital-twin-o35j.onrender.com/forgot_password/reset",
+                r = requests.post(f"{BACKEND_URL}/forgot_password/reset",
                                    json={"email": _fp_email_rst,
                                          "otp":   _fp_otp_rst,
                                          "new_password": _newpwd}, timeout=60)
@@ -1483,6 +1535,7 @@ if not st.session_state.logged_in:
             fp_email = st.session_state.get("fp_email", ""),
             otp_sent = st.session_state.get("otp_sent", False),
             otp_email= st.session_state.get("auth_otp_email", ""),
+            backend_url=BACKEND_URL,
         )
         st.session_state.auth_error   = ""
         st.session_state.auth_success = ""
@@ -1691,7 +1744,7 @@ else:
                 st.session_state.profile_pic_b64 = pic_b64_new
                 st.session_state.show_profile_edit = False
                 try:
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/profile/save_photo",
+                    requests.post(f"{BACKEND_URL}/profile/save_photo",
                                   json={"user_id": st.session_state.email, "pic_b64": pic_b64_new}, timeout=3)
                 except Exception:
                     pass
@@ -1701,7 +1754,7 @@ else:
                     st.session_state.profile_pic_b64 = None
                     st.session_state.show_profile_edit = False
                     try:
-                        requests.post("https://ai-digital-twin-o35j.onrender.com/profile/save_photo",
+                        requests.post(f"{BACKEND_URL}/profile/save_photo",
                                       json={"user_id": st.session_state.email, "pic_b64": None}, timeout=3)
                     except Exception:
                         pass
@@ -1795,7 +1848,7 @@ else:
                 ts   = st.session_state.chat_timestamps
                 if hist and st.session_state.get("current_session_id"):
                     first_user = next((m["content"] for m in hist if m["role"] == "user"), "Chat")
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/chat/save", json={
+                    requests.post(f"{BACKEND_URL}/chat/save", json={
                         "user_id": st.session_state.email,
                         "session_id": st.session_state.current_session_id,
                         "messages": hist, "timestamps": ts,
@@ -1835,7 +1888,7 @@ else:
 
         if st.session_state.get("show_chat_history", False):
             try:
-                sess_res = requests.get("https://ai-digital-twin-o35j.onrender.com/chat/sessions",
+                sess_res = requests.get(f"{BACKEND_URL}/chat/sessions",
                                         params={"user_id": st.session_state.email}, timeout=4).json()
                 sessions = sess_res.get("sessions", [])
             except Exception:
@@ -1860,7 +1913,7 @@ else:
                         if st.button("Load" if not is_cur else "View", key=f"load_sess_{sid}"):
                             _save_session()
                             try:
-                                loaded = requests.get("https://ai-digital-twin-o35j.onrender.com/chat/load",
+                                loaded = requests.get(f"{BACKEND_URL}/chat/load",
                                                       params={"user_id": st.session_state.email, "session_id": sid}, timeout=4).json()
                                 st.session_state.chat_history        = loaded.get("messages", [])
                                 st.session_state.chat_timestamps    = loaded.get("timestamps", [])
@@ -1874,7 +1927,7 @@ else:
                     del_choice = st.selectbox("Select", list(del_opts.keys()), key="del_sess_select")
                     if st.button("🗑️ Confirm Delete", key="del_sess_btn"):
                         del_sid = del_opts[del_choice]
-                        try: requests.delete(f"https://ai-digital-twin-o35j.onrender.com/chat/session/{del_sid}", params={"user_id": st.session_state.email}, timeout=4)
+                        try: requests.delete(f"{BACKEND_URL}/chat/session/{del_sid}", params={"user_id": st.session_state.email}, timeout=4)
                         except Exception: pass
                         if del_sid == st.session_state.current_session_id:
                             st.session_state.chat_history    = []
@@ -1931,7 +1984,7 @@ else:
                         tm_chip.start()
                         def _stream_chip():
                             with requests.get(
-                                "https://ai-digital-twin-o35j.onrender.com/ask_stream",
+                                f"{BACKEND_URL}/ask_stream",
                                 params={"user_id": st.session_state.email, "question": chip_prompt, "mood": twin_mood},
                                 stream=True, timeout=60
                             ) as r:
@@ -2136,7 +2189,7 @@ else:
                             # Image analysis — can't stream, use ThinkingManager
                             files = [("files", (img.name, img.getvalue(), img.type)) for img in uploaded_images[:10]]
                             with ThinkingManager():
-                                res = requests.post("https://ai-digital-twin-o35j.onrender.com/analyze_image",
+                                res = requests.post(f"{BACKEND_URL}/analyze_image",
                                     params={"user_id": st.session_state.email, "question": augmented, "mood": twin_mood},
                                     files=files, timeout=60)
                                 answer = res.json()["answer"]
@@ -2147,7 +2200,7 @@ else:
                             tm_main.start()
                             def _stream_main():
                                 with requests.get(
-                                    "https://ai-digital-twin-o35j.onrender.com/ask_stream",
+                                    f"{BACKEND_URL}/ask_stream",
                                     params={"user_id": st.session_state.email, "question": augmented, "mood": twin_mood},
                                     stream=True, timeout=60
                                 ) as r:
@@ -2183,14 +2236,14 @@ else:
                 placeholder="e.g., I recently started learning more about advanced vector databases and I prefer using Python for data processing. I live in Mumbai and love drinking filter coffee."
             )
             if st.button("Integrate Memory"):
-                requests.post(f"https://ai-digital-twin-o35j.onrender.com/train?user_id={st.session_state.email}&details={fact}", timeout=8)
+                requests.post(f"{BACKEND_URL}/train?user_id={st.session_state.email}&details={fact}", timeout=8)
                 _invalidate_cache(f"memories_{st.session_state.email}")
                 st.success("Trained!")
         with col_right:
             st.subheader("🧠 Memory List")
             try:
                 import datetime
-                m_res = _api_get(f"https://ai-digital-twin-o35j.onrender.com/memories",
+                m_res = _api_get(f"{BACKEND_URL}/memories",
                                   params={"user_id": st.session_state.email},
                                   timeout=5, cache_key=f"memories_{st.session_state.email}",
                                   cache_ttl=60)
@@ -2221,7 +2274,7 @@ else:
                                 st.markdown(f'<div class="memory-card"><div class="memory-card-text">{display_text}</div><div class="memory-card-meta"><span class="memory-badge">🕐 {ts.strftime("%I:%M %p")}</span><span class="memory-badge">📅 {ts.strftime("%d %b %Y")}</span><span class="memory-badge-cat">{icon} {cat}</span></div></div>', unsafe_allow_html=True)
                             with c2:
                                 if st.button("🗑️", key=f"del_dialog_{i}"):
-                                    requests.delete(f"https://ai-digital-twin-o35j.onrender.com/memories/{mid}", timeout=4)
+                                    requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
                                     _invalidate_cache(f"memories_{st.session_state.email}")
                                     st.rerun()
                                     
@@ -2235,7 +2288,7 @@ else:
                             st.markdown(f'<div class="memory-card"><div class="memory-card-text">{display_text}</div><div class="memory-card-meta"><span class="memory-badge">🕐 {ts.strftime("%I:%M %p")}</span><span class="memory-badge">📅 {ts.strftime("%d %b %Y")}</span><span class="memory-badge-cat">{icon} {cat}</span></div></div>', unsafe_allow_html=True)
                         with c2:
                             if st.button("🗑️", key=f"del_{i}"):
-                                requests.delete(f"https://ai-digital-twin-o35j.onrender.com/memories/{mid}", timeout=4)
+                                requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
                                 _invalidate_cache(f"memories_{st.session_state.email}")
                                 st.rerun()
 
@@ -2266,7 +2319,7 @@ else:
             if st.button("🧠 Train Coding Style", key="train_style"):
                 if style_snippet.strip():
                     note = style_note.strip() or "general coding style"
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/train", params={"user_id": st.session_state.email, "details": f"[CODING STYLE EXAMPLE] {note}:\n```\n{style_snippet}\n```"}, timeout=8)
+                    requests.post(f"{BACKEND_URL}/train", params={"user_id": st.session_state.email, "details": f"[CODING STYLE EXAMPLE] {note}:\n```\n{style_snippet}\n```"}, timeout=8)
                     _invalidate_cache(f"memories_{st.session_state.email}")
                     st.success("✅ Coding style learned!")
                 else:
@@ -2274,7 +2327,7 @@ else:
             st.markdown("---")
             st.caption("📚 Learned coding styles:")
             try:
-                m_res2 = _api_get("https://ai-digital-twin-o35j.onrender.com/memories",
+                m_res2 = _api_get(f"{BACKEND_URL}/memories",
                                    params={"user_id": st.session_state.email},
                                    timeout=5, cache_key=f"memories_{st.session_state.email}",
                                    cache_ttl=60)
@@ -2285,7 +2338,7 @@ else:
                     with c1: st.markdown(f'<div class="code-style-card">🔖 {mem.replace("[CODING STYLE EXAMPLE]","").strip()[:120]}...</div>', unsafe_allow_html=True)
                     with c2:
                         if st.button("🗑️", key=f"del_style_{mid}"):
-                            requests.delete(f"https://ai-digital-twin-o35j.onrender.com/memories/{mid}", timeout=4)
+                            requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
                             _invalidate_cache(f"memories_{st.session_state.email}")
                             st.rerun()
                 if not style_mems: st.caption("No coding styles trained yet.")
@@ -2300,7 +2353,7 @@ else:
                         params = {"repo_path": repo_path_input.strip(), "max_files": 25}
                         if repo_ext_filter.strip(): params["extensions"] = repo_ext_filter.strip()
                         try:
-                            repo_data = requests.get("https://ai-digital-twin-o35j.onrender.com/repo_files", params=params).json()
+                            repo_data = requests.get(f"{BACKEND_URL}/repo_files", params=params).json()
                             st.session_state["last_repo_data"] = repo_data
                             st.success(f'{"✅ Git repo" if repo_data.get("is_git_repo") else "📂 Folder"} — {repo_data["total_files"]} files found')
                         except Exception as ex: st.error(f"Repo browse error: {ex}")
@@ -2335,7 +2388,7 @@ else:
                     mode_label = debug_mode.split(" ",1)[1]
                     with ThinkingManager():
                         try:
-                            data = requests.post("https://ai-digital-twin-o35j.onrender.com/debug_code", json={
+                            data = requests.post(f"{BACKEND_URL}/debug_code", json={
                                 "user_id": st.session_state.email, "code": buggy_code,
                                 "language": language, "mode": mode_label, "mood": twin_mood,
                                 "extra_context": extra_ctx or "", "run_code": run_original,
@@ -2473,13 +2526,13 @@ else:
             )
             if st.button("💾 Save Style Preference", key="save_style_pref"):
                 if style_fact.strip():
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/train", params={"user_id": st.session_state.email, "details": f"[PERSONAL STYLE] {style_fact.strip()}"}, timeout=8)
+                    requests.post(f"{BACKEND_URL}/train", params={"user_id": st.session_state.email, "details": f"[PERSONAL STYLE] {style_fact.strip()}"}, timeout=8)
                     _invalidate_cache(f"memories_{st.session_state.email}")
                     st.success("✅ Style preference saved!")
                 else: st.warning("Please enter a style preference first.")
             st.caption("📋 Your saved style profile:")
             try:
-                m_res3 = _api_get("https://ai-digital-twin-o35j.onrender.com/memories",
+                m_res3 = _api_get(f"{BACKEND_URL}/memories",
                                    params={"user_id": st.session_state.email},
                                    timeout=5, cache_key=f"memories_{st.session_state.email}",
                                    cache_ttl=60)
@@ -2490,7 +2543,7 @@ else:
                     with c1: st.markdown(f'<div class="style-tip-card">👗 {mem.replace("[PERSONAL STYLE]","").strip()[:130]}</div>', unsafe_allow_html=True)
                     with c2:
                         if st.button("🗑️", key=f"del_style_pref_{mid}"):
-                            requests.delete(f"https://ai-digital-twin-o35j.onrender.com/memories/{mid}", timeout=4)
+                            requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
                             _invalidate_cache(f"memories_{st.session_state.email}")
                             st.rerun()
                 if not style_prefs: st.caption("No style profile yet.")
@@ -2505,7 +2558,7 @@ else:
                 with ThinkingManager():
                     try:
                         files = [("files",(img.name,img.getvalue(),img.type)) for img in outfit_images[:3]]
-                        answer = requests.post("https://ai-digital-twin-o35j.onrender.com/style_mirror",
+                        answer = requests.post(f"{BACKEND_URL}/style_mirror",
                                                 params={"user_id": st.session_state.email, "mood": twin_mood, "occasion": occasion},
                                                 files=files).json().get("answer","No response.")
                         import re
@@ -2607,7 +2660,7 @@ else:
                 topics    = [t.strip() for t in topics_input.split(",") if t.strip()]
                 with st.spinner("📡 Scanning live news..."):
                     try:
-                        data = requests.post("https://ai-digital-twin-o35j.onrender.com/morning_briefing", json={"user_id": st.session_state.email, "mood": news_mood, "locations": locations, "extra_topics": topics}, timeout=60).json()
+                        data = requests.post(f"{BACKEND_URL}/morning_briefing", json={"user_id": st.session_state.email, "mood": news_mood, "locations": locations, "extra_topics": topics}, timeout=60).json()
                         briefing_text = data.get("briefing","No briefing returned.")
                         st.session_state["last_briefing_text"]     = briefing_text
                         st.session_state["last_briefing_articles"] = data.get("articles_found",0)
@@ -2631,16 +2684,16 @@ else:
         # ── Export Control (Moved from Sidebar) ───────────────────────────────────
         st.markdown('<div class="export-report-anchor"></div>', unsafe_allow_html=True)
         if st.button("💾 Generate CSV Export Report", key="export_report_btn", use_container_width=True):
-            csv_res = requests.get(f"https://ai-digital-twin-o35j.onrender.com/export?user_id={st.session_state.email}")
+            csv_res = requests.get(f"{BACKEND_URL}/export?user_id={st.session_state.email}")
             if csv_res.status_code == 200:
                 st.download_button("Download Memories", data=csv_res.content, file_name="twin_data.csv", mime="text/csv")
         st.markdown("<br>", unsafe_allow_html=True)
         try:
-            counts   = (_api_get("https://ai-digital-twin-o35j.onrender.com/analytics",
+            counts   = (_api_get(f"{BACKEND_URL}/analytics",
                                   params={"user_id": st.session_state.email},
                                   timeout=5, cache_key=f"analytics_{st.session_state.email}",
                                   cache_ttl=120) or {}).get("counts", {})
-            sessions = (_api_get("https://ai-digital-twin-o35j.onrender.com/chat/sessions",
+            sessions = (_api_get(f"{BACKEND_URL}/chat/sessions",
                                   params={"user_id": st.session_state.email},
                                   timeout=5, cache_key=f"sessions_{st.session_state.email}",
                                   cache_ttl=60) or {}).get("sessions", [])
@@ -2680,13 +2733,13 @@ else:
             goal_cat = st.selectbox("Category", ["Health & Fitness","Learning","Career","Personal","Finance","Relationships","Other"], key="goal_cat")
             if st.button("🎯 Add Goal", key="add_goal_btn", use_container_width=True):
                 if new_goal.strip():
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/goals/add", json={"user_id": st.session_state.email, "goal": new_goal.strip(), "category": goal_cat})
+                    requests.post(f"{BACKEND_URL}/goals/add", json={"user_id": st.session_state.email, "goal": new_goal.strip(), "category": goal_cat})
                     st.success("✅ Goal added!"); st.rerun()
                 else: st.warning("Please enter a goal first.")
         with gr:
             st.markdown("#### 📋 Your Goals")
             try:
-                goals_list = requests.get(f"https://ai-digital-twin-o35j.onrender.com/goals?user_id={st.session_state.email}", timeout=4).json().get("goals",[])
+                goals_list = requests.get(f"{BACKEND_URL}/goals?user_id={st.session_state.email}", timeout=4).json().get("goals",[])
                 cat_icons  = {"Health & Fitness":"💪","Learning":"📚","Career":"💼","Personal":"🌱","Finance":"💰","Relationships":"❤️","Other":"🎯"}
                 if not goals_list: st.info("No goals yet.")
                 for goal in goals_list:
@@ -2701,10 +2754,10 @@ else:
                         uc1, uc2 = st.columns(2)
                         with uc1:
                             if st.button("💾 Save", key=f"save_goal_{gid}", use_container_width=True):
-                                requests.post("https://ai-digital-twin-o35j.onrender.com/goals/update", json={"goal_id": gid, "progress": new_prog, "note": note_txt}); st.rerun()
+                                requests.post(f"{BACKEND_URL}/goals/update", json={"goal_id": gid, "progress": new_prog, "note": note_txt}); st.rerun()
                         with uc2:
                             if st.button("🗑️ Delete", key=f"del_goal_{gid}", use_container_width=True):
-                                requests.delete(f"https://ai-digital-twin-o35j.onrender.com/goals/{gid}", params={"user_id": st.session_state.email}); st.rerun()
+                                requests.delete(f"{BACKEND_URL}/goals/{gid}", params={"user_id": st.session_state.email}); st.rerun()
             except Exception as ex: st.error(f"Error loading goals: {ex}")
 
     # ── CALENDAR ──────────────────────────────────────────────────────────────
@@ -2721,13 +2774,13 @@ else:
             ev_color = st.color_picker("Color tag", value="#38bdf8", key="ev_color")
             if st.button("📅 Add Event", key="add_ev_btn", use_container_width=True):
                 if ev_title.strip():
-                    requests.post("https://ai-digital-twin-o35j.onrender.com/calendar/add", json={"user_id": st.session_state.email, "title": ev_title.strip(), "date": str(ev_date), "time": str(ev_time), "description": ev_desc, "color": ev_color})
+                    requests.post(f"{BACKEND_URL}/calendar/add", json={"user_id": st.session_state.email, "title": ev_title.strip(), "date": str(ev_date), "time": str(ev_time), "description": ev_desc, "color": ev_color})
                     st.success("✅ Event added!"); st.rerun()
                 else: st.warning("Please enter an event title.")
         with cal_r:
             st.markdown("#### 🗓️ Upcoming Events")
             try:
-                ev_list   = requests.get("https://ai-digital-twin-o35j.onrender.com/calendar/events", params={"user_id": st.session_state.email}, timeout=4).json().get("events",[])
+                ev_list   = requests.get(f"{BACKEND_URL}/calendar/events", params={"user_id": st.session_state.email}, timeout=4).json().get("events",[])
                 today_str = str(_cal_dt.date.today())
                 upcoming  = [e for e in ev_list if e.get("date","") >= today_str]
                 past      = [e for e in ev_list if e.get("date","") <  today_str]
@@ -2747,7 +2800,7 @@ else:
                             with ec: st.markdown(f'<div style="border-left:4px solid {ev.get("color","#38bdf8")};padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,0.04);border-radius:0 10px 10px 0"><div style="color:#e2e8f0;font-weight:600">{ev["title"]}</div><div style="color:#64748b;font-size:0.75rem">📅 {ev_date_fmt}{" at "+ev.get("time","") if ev.get("time") else ""}</div>{"<div style=color:#94a3b8;font-size:0.78rem;margin-top:4px>"+ev["description"]+"</div>" if ev.get("description") else ""}</div>', unsafe_allow_html=True)
                             with dc:
                                 if st.button("🗑️", key=f"del_ev_{ev_id}"):
-                                    requests.delete(f"https://ai-digital-twin-o35j.onrender.com/calendar/event/{ev_id}", params={"user_id": st.session_state.email}); st.rerun()
+                                    requests.delete(f"{BACKEND_URL}/calendar/event/{ev_id}", params={"user_id": st.session_state.email}); st.rerun()
                     if past:
                         with st.expander(f"📁 Past events ({len(past)})"):
                             for ev in past[-10:]:
