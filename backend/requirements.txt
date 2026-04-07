@@ -22,6 +22,7 @@ langchain-core
 # HTTP client
 httpx
 python-dotenv
+python-multipart
 
 # Web search (optional — for newsroom feature)
 duckduckgo-search
