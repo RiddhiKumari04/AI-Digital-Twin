@@ -1,0 +1,39 @@
+﻿# TwinX Backend â€” Python dependencies
+# Install: pip install -r requirements.txt
+
+# Web framework
+fastapi
+uvicorn[standard]
+# FIX: gunicorn required for production deployment on Render
+gunicorn
+
+# Database
+motor
+pymongo
+
+# Vector DB
+chromadb
+
+# AI / LLM
+google-generativeai
+langchain-google-genai
+langchain-core
+
+# HTTP client
+httpx
+python-dotenv
+
+# Web search (optional â€” for newsroom feature)
+duckduckgo-search
+
+# Email (optional â€” Brevo / Resend are REST-based, no extra packages needed)
+# SMTP is in the stdlib; nothing extra required.
+
+# Google Calendar (optional)
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+
+# Data
+pydantic

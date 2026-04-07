@@ -1,29 +1,9 @@
-"""
-main.py — FastAPI application entry point.
+# main.py — FastAPI application entry point.
+import os
+import sys
 
-Only responsibilities:
-  - Create the FastAPI app
-  - Configure CORS middleware
-  - Include all route modules
-  - Start uvicorn (when run directly)
-
-All business logic lives in the submodules:
-  config.py        — env vars, DB clients, shared state
-  ai_providers.py  — multi-provider AI fallback chain
-  models.py        — Pydantic request/response models
-  utils.py         — utility helpers (syntax check, code exec, web search, …)
-  routes/
-    auth.py        — register, login, OTP, Google OAuth, profile photo
-    twin.py        — ask, ask_stream, train, memories, export, analytics, …
-    developer.py   — debug_code, repo_files  (Shadow Developer)
-    newsroom.py    — morning_briefing  (Twin Newsroom)
-    chat.py        — persistent chat sessions
-    goals.py       — goals & habits
-    calendar.py    — calendar events + Google Calendar sync
-    misc.py        — translate
-    health.py      — /health, /health/ping (service status)
-    docs.py        — /api-docs (custom branded API documentation)
-"""
+# Ensure backend directory is in Python path for modular imports
+sys.path.append(os.path.join(os.path.dirname(__file__), "backend"))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
