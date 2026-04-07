@@ -1842,7 +1842,62 @@ else:
         new_lang  = st.selectbox("🌍 Response Language", lang_opts, index=lang_opts.index(cur_lang) if cur_lang in lang_opts else 0, key="lang_select")
         if new_lang != cur_lang:
             st.session_state.language = new_lang
+
+        # ── BACKEND HEALTH STATUS ────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("**🛰 Backend Status**")
+        try:
+            _h = requests.get(f"{BACKEND_URL}/health/ping", timeout=2)
+            _h_full = requests.get(f"{BACKEND_URL}/health", timeout=6).json()
+            _overall = _h_full.get("status", "unknown")
+            _summary = _h_full.get("summary", {})
+            _services = _h_full.get("services", {})
+            _color = {"healthy": "#22c55e", "degraded": "#f59e0b", "unhealthy": "#ef4444"}.get(_overall, "#94a3b8")
+            _icon  = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}.get(_overall, "⚪")
+            st.markdown(
+                f'<div style="background:rgba(0,0,0,0.2);border:1px solid {_color}40;border-left:3px solid {_color};'
+                f'border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
+                f'<div style="color:{_color};font-size:0.85rem;font-weight:700">{_icon} {_overall.capitalize()}</div>'
+                f'<div style="color:#64748b;font-size:0.72rem;margin-top:3px">'
+                f'DB: {_summary.get("critical_services","?")} &nbsp;|&nbsp; AI: {_summary.get("ai_providers","?")}'
+                f'</div></div>',
+                unsafe_allow_html=True
+            )
+            # Per-service dots
+            _svc_icons = {
+                "mongodb": "🗄 MongoDB", "chromadb": "💾 ChromaDB",
+                "gemini": "💎 Gemini", "openrouter": "🔀 OpenRouter",
+                "groq": "⚡ Groq", "huggingface": "🤗 HuggingFace",
+                "together_ai": "🤝 Together AI", "email": "✉️ Email",
+                "google_oauth": "🔑 Google OAuth",
+            }
+            lines_html = []
+            for _svc, _label in _svc_icons.items():
+                _st = _services.get(_svc, {}).get("status", "unknown")
+                _dot = "🟢" if _st == "ok" else ("🟡" if _st in ("warning", "configured") else "🔴")
+                lines_html.append(f'<span style="font-size:0.72rem;color:#94a3b8;">{_dot} {_label}</span>')
+            st.markdown(
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">' +
+                "".join(f'<span>{l}</span>' for l in lines_html) + '</div>',
+                unsafe_allow_html=True
+            )
+        except Exception:
+            st.markdown(
+                '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);'
+                'border-left:3px solid #ef4444;border-radius:10px;padding:8px 12px;'
+                'color:#f87171;font-size:0.8rem">🔴 Backend unreachable</div>',
+                unsafe_allow_html=True
+            )
+
+        st.markdown(
+            f'<a href="{BACKEND_URL}/api-docs" target="_blank" style="display:block;text-align:center;'
+            f'color:#38bdf8;font-size:0.78rem;margin-top:4px;text-decoration:none;">📖 API Documentation ↗</a>',
+            unsafe_allow_html=True
+        )
+
+        st.markdown("---")
         if st.button("Logout"):
+
             try:
                 hist = st.session_state.chat_history
                 ts   = st.session_state.chat_timestamps

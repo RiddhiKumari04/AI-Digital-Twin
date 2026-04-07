@@ -13,11 +13,11 @@ routes/twin.py — Core Digital Twin endpoints:
   GET  /recommend_gift
 """
 
+import csv
 import random
 import io
 from typing import List
 
-import pandas as pd
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import StreamingResponse
 
@@ -60,14 +60,11 @@ async def export_memories(user_id: str):
     results = knowledge_col.get(where={"user": user_id})
     if not results["documents"]:
         raise HTTPException(status_code=404)
-    df = pd.DataFrame(
-        {
-            "Memory": results["documents"],
-            "Category": [m.get("category", "General") for m in results["metadatas"]],
-        }
-    )
     stream = io.StringIO()
-    df.to_csv(stream, index=False)
+    writer = csv.writer(stream)
+    writer.writerow(["Memory", "Category"])
+    for doc, meta in zip(results["documents"], results["metadatas"]):
+        writer.writerow([doc, meta.get("category", "General")])
     return StreamingResponse(
         io.BytesIO(stream.getvalue().encode()),
         media_type="text/csv",

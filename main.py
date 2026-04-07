@@ -21,17 +21,19 @@ All business logic lives in the submodules:
     goals.py       — goals & habits
     calendar.py    — calendar events + Google Calendar sync
     misc.py        — translate
+    health.py      — /health, /health/ping (service status)
+    docs.py        — /api-docs (custom branded API documentation)
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes import auth, twin, developer, newsroom, chat, goals, calendar, misc
+from routes import auth, twin, developer, newsroom, chat, goals, calendar, misc, health, docs
 
 app = FastAPI(
     title="AI Digital Twin API",
     description="Backend powering TwinX — your AI Digital Twin.",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -52,6 +54,8 @@ app.include_router(chat.router)
 app.include_router(goals.router)
 app.include_router(calendar.router)
 app.include_router(misc.router)
+app.include_router(health.router)
+app.include_router(docs.router)
 
 
 # ── Dev server ────────────────────────────────────────────────────────────────

@@ -1,0 +1,52 @@
+13|BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+528|var BACKEND_URL = "{BACKEND_URL}";
+593|  fetch(`${BACKEND_URL}/auth/google/start`)
+735|    html = html.replace("{BACKEND_URL}", backend_url)
+812|        r = requests.get(url, params=params, timeout=timeout)
+1281|            requests.post(f"{BACKEND_URL}/chat/save", json={
+1293|            _pic_lazy = requests.get(f"{BACKEND_URL}/profile/get_photo",
+1324|                r = requests.get(f"{BACKEND_URL}/login",
+1359|                r = requests.post(f"{BACKEND_URL}/register",
+1374|                r = requests.post(f"{BACKEND_URL}/login_otp/send",
+1388|                r = requests.post(f"{BACKEND_URL}/login_otp/verify",
+1422|                r = requests.post(f"{BACKEND_URL}/forgot_password/send_otp",
+1438|                r = requests.post(f"{BACKEND_URL}/forgot_password/verify_otp",
+1454|                r = requests.post(f"{BACKEND_URL}/forgot_password/reset",
+1538|            backend_url=BACKEND_URL,
+1747|                    requests.post(f"{BACKEND_URL}/profile/save_photo",
+1757|                        requests.post(f"{BACKEND_URL}/profile/save_photo",
+1851|                    requests.post(f"{BACKEND_URL}/chat/save", json={
+1891|                sess_res = requests.get(f"{BACKEND_URL}/chat/sessions",
+1916|                                loaded = requests.get(f"{BACKEND_URL}/chat/load",
+1930|                        try: requests.delete(f"{BACKEND_URL}/chat/session/{del_sid}", params={"user_id": st.session_state.email}, timeout=4)
+1986|                            with requests.get(
+1987|                                f"{BACKEND_URL}/ask_stream",
+2192|                                res = requests.post(f"{BACKEND_URL}/analyze_image",
+2202|                                with requests.get(
+2203|                                    f"{BACKEND_URL}/ask_stream",
+2239|                requests.post(f"{BACKEND_URL}/train?user_id={st.session_state.email}&details={fact}", timeout=8)
+2246|                m_res = _api_get(f"{BACKEND_URL}/memories",
+2277|                                    requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
+2291|                                requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
+2312|                placeholder="def fetch_data(url: str) -> dict:\n    # I always use type hints and clear comments\n    # response = requests.get(url)\n    # return response.json()"
+2322|                    requests.post(f"{BACKEND_URL}/train", params={"user_id": st.session_state.email, "details": f"[CODING STYLE EXAMPLE] {note}:\n```\n{style_snippet}\n```"}, timeout=8)
+2330|                m_res2 = _api_get(f"{BACKEND_URL}/memories",
+2341|                            requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
+2356|                            repo_data = requests.get(f"{BACKEND_URL}/repo_files", params=params).json()
+2391|                            data = requests.post(f"{BACKEND_URL}/debug_code", json={
+2529|                    requests.post(f"{BACKEND_URL}/train", params={"user_id": st.session_state.email, "details": f"[PERSONAL STYLE] {style_fact.strip()}"}, timeout=8)
+2535|                m_res3 = _api_get(f"{BACKEND_URL}/memories",
+2546|                            requests.delete(f"{BACKEND_URL}/memories/{mid}", timeout=4)
+2561|                        answer = requests.post(f"{BACKEND_URL}/style_mirror",
+2663|                        data = requests.post(f"{BACKEND_URL}/morning_briefing", json={"user_id": st.session_state.email, "mood": news_mood, "locations": locations, "extra_topics": topics}, timeout=60).json()
+2675|                    except requests.exceptions.Timeout: st.error("⏰ Timed out. Try again.")
+2687|            csv_res = requests.get(f"{BACKEND_URL}/export?user_id={st.session_state.email}")
+2692|            counts   = (_api_get(f"{BACKEND_URL}/analytics",
+2696|            sessions = (_api_get(f"{BACKEND_URL}/chat/sessions",
+2736|                    requests.post(f"{BACKEND_URL}/goals/add", json={"user_id": st.session_state.email, "goal": new_goal.strip(), "category": goal_cat})
+2742|                goals_list = requests.get(f"{BACKEND_URL}/goals?user_id={st.session_state.email}", timeout=4).json().get("goals",[])
+2757|                                requests.post(f"{BACKEND_URL}/goals/update", json={"goal_id": gid, "progress": new_prog, "note": note_txt}); st.rerun()
+2760|                                requests.delete(f"{BACKEND_URL}/goals/{gid}", params={"user_id": st.session_state.email}); st.rerun()
+2777|                    requests.post(f"{BACKEND_URL}/calendar/add", json={"user_id": st.session_state.email, "title": ev_title.strip(), "date": str(ev_date), "time": str(ev_time), "description": ev_desc, "color": ev_color})
+2783|                ev_list   = requests.get(f"{BACKEND_URL}/calendar/events", params={"user_id": st.session_state.email}, timeout=4).json().get("events",[])
+2803|                                    requests.delete(f"{BACKEND_URL}/calendar/event/{ev_id}", params={"user_id": st.session_state.email}); st.rerun()

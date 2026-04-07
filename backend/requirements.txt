@@ -22,7 +22,6 @@ langchain-core==0.2.9
 # HTTP client
 httpx==0.27.0
 python-dotenv==1.0.1
-pandas==2.2.2
 
 # Web search (optional — for newsroom feature)
 duckduckgo-search==6.1.9
