@@ -5,6 +5,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import RedirectResponse
 from routes import auth, twin, developer, newsroom, chat, goals, calendar, misc, health, docs
 
 app = FastAPI(
@@ -12,6 +13,14 @@ app = FastAPI(
     description="Backend powering TwinX — your AI Digital Twin.",
     version="2.1.0",
 )
+
+# ── API Documentation Redirects ──────────────────────────────────────────────
+@app.get("/api/docs", include_in_schema=False)
+@app.get("/docs", include_in_schema=False)
+@app.get("/redoc", include_in_schema=False)
+async def redirect_to_custom_docs():
+    """Redirect all doc paths to the premium branded /api-docs page."""
+    return RedirectResponse(url="/api-docs")
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(

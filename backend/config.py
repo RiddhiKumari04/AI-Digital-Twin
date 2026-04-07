@@ -29,8 +29,12 @@ chat_sessions_col = db["chat_sessions"]
 goals_col = db["goals"]
 calendar_col = db["calendar_events"]
 
-# ── ChromaDB ─────────────────────────────────────────────────────────────────
-chroma_client = chromadb.PersistentClient(path="./twin_db")
+# ── ChromaDB (Cloud Migration) ───────────────────────────────────────────────
+chroma_client = chromadb.CloudClient(
+    api_key=os.getenv("CHROMA_API_KEY", "ck-tgR3CaYYNZhWXcimYwjPqkhXhRbZE7dUafEeDMeDf26"),
+    tenant=os.getenv("CHROMA_TENANT", "ad6cacfa-6fa9-406c-8cf4-aeb743865dd9"),
+    database=os.getenv("CHROMA_DATABASE", "prod")
+)
 knowledge_col = chroma_client.get_or_create_collection(name="user_knowledge")
 
 # ── In-memory chat history ────────────────────────────────────────────────────
