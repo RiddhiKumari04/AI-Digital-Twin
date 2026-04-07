@@ -74,7 +74,7 @@ def _check_chromadb() -> dict:
 def _check_gemini() -> dict:
     t0 = time.perf_counter()
     if not GEMINI_KEY:
-        return _err("GEMINI_API_KEY not set in .env")
+        return _err("GEMINI_API_KEY not set in environment")
     try:
         import google.generativeai as genai  # pyright: ignore
         genai.configure(api_key=GEMINI_KEY)
