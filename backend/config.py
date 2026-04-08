@@ -21,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import google.generativeai as genai  # pyright: ignore[reportMissingImports]
 
 # ── MongoDB ──────────────────────────────────────────────────────────────────
-MONGO_URL = os.getenv("MONGO_URI", "mongodb+srv://admin:admin@twinx.wzsopcx.mongodb.net/?appName=TwinX")
+MONGO_URL = os.getenv("MONGO_URI", "mongodb+srv://twinx:twinx@twinx.0a4mucd.mongodb.net/?appName=TwinX")
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client["twin_database"]
 users_collection = db["users"]
@@ -41,7 +41,7 @@ knowledge_col = chroma_client.get_or_create_collection(name="user_knowledge")
 chat_histories: dict = {}
 
 # ── AI Provider Keys ─────────────────────────────────────────────────────────
-GEMINI_KEY      = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_KEY      = (os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")).strip()
 OPENROUTER_KEY  = os.getenv("OPENROUTER_API_KEY", "").strip()
 GROQ_KEY        = os.getenv("GROQ_API_KEY", "").strip()
 HUGGINGFACE_KEY = os.getenv("HUGGINGFACE_API_KEY", "").strip()
