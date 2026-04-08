@@ -21,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import google.generativeai as genai  # pyright: ignore[reportMissingImports]
 
 # ── MongoDB ──────────────────────────────────────────────────────────────────
-MONGO_URL = os.getenv("MONGO_URI", "mongodb+srv://twinx:twinx@twinx.0a4mucd.mongodb.net/?appName=TwinX")
+MONGO_URL = os.getenv("MONGO_URI", "mongodb+srv://admin:admin@twinx.0a4mucd.mongodb.net/?appName=TwinX")
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client["twin_database"]
 users_collection = db["users"]

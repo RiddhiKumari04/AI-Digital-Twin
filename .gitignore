@@ -7,6 +7,11 @@ backend/service_account.json
 frontend/.streamlit/secrets.toml
 *.pem
 *.key
+node_modules/
+.expo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ── Local data (ephemeral — not for git) ─────────────────────────────────────
 backend/twin_db/

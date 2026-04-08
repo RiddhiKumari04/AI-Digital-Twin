@@ -3,18 +3,16 @@ package expo.modules.asset
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import expo.modules.interfaces.filesystem.Permission
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.kotlin.services.FilePermissionService
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
 import java.net.URI
-import java.security.DigestInputStream
 import java.security.MessageDigest
 
 internal class UnableToDownloadAssetException(url: String) :
@@ -29,28 +27,14 @@ class AssetModule : Module() {
     return md.digest(uri.toString().toByteArray()).joinToString("") { "%02x".format(it) }
   }
 
-  private fun getMD5HashOfFileContent(file: File): String? {
-    return try {
-      FileInputStream(file).use { inputStream ->
-        DigestInputStream(
-          inputStream,
-          MessageDigest.getInstance("MD5")
-        ).use { digestInputStream ->
-          digestInputStream.messageDigest.digest().joinToString(separator = "") { "%02x".format(it) }
-        }
-      }
-    } catch (e: Exception) {
-      e.printStackTrace()
-      null
-    }
-  }
-
   private suspend fun downloadAsset(appContext: AppContext, uri: URI, localUrl: File): Uri {
     if (localUrl.parentFile?.exists() != true) {
       localUrl.mkdirs()
     }
 
-    if (appContext.filePermission?.getPathPermissions(appContext.reactContext, localUrl.parent)?.contains(Permission.WRITE) != true) {
+    if (!appContext.filePermission.getPathPermissions(context, requireNotNull(localUrl.parent))
+        .contains(FilePermissionService.Permission.WRITE)
+    ) {
       throw UnableToDownloadAssetException(uri.toString())
     }
 
