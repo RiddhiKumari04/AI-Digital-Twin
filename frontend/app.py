@@ -1483,7 +1483,7 @@ if not st.session_state.logged_in:
         elif act == "otp_send":
             try:
                 r = requests.post(f"{BACKEND_URL}/login_otp/send",
-                                   params={"email": _email.strip()}, timeout=15)
+                                   params={"email": _email.strip()}, timeout=60)
                 if r.status_code == 200:
                     st.session_state.otp_sent        = True
                     st.session_state.auth_otp_email = _email.strip()
@@ -1531,7 +1531,7 @@ if not st.session_state.logged_in:
             try:
                 _fp_em = _email.strip()
                 r = requests.post(f"{BACKEND_URL}/forgot_password/send_otp",
-                                   params={"email": _fp_em}, timeout=15)
+                                   params={"email": _fp_em}, timeout=60)
                 if r.status_code == 200:
                     st.session_state["fp_email"]     = _fp_em
                     st.session_state["fp_step"]      = "enter_otp"

@@ -21,7 +21,7 @@ import urllib.parse
 import json as _json
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import RedirectResponse
 
 from config import (
@@ -229,16 +229,14 @@ async def login(email: str, password: str):
 
 
 @router.post("/forgot_password/send_otp")
-async def forgot_password_send_otp(email: str):
+async def forgot_password_send_otp(email: str, background_tasks: BackgroundTasks):
     """Check email exists, generate OTP, send via email."""
     user = await users_collection.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=404, detail="No account found with this email.")
     otp = str(random.randint(100000, 999999))
     _otp_store[email] = {"otp": otp, "expires": time.time() + 600}
-    sent = _send_otp_email(email, otp, purpose="Password Reset")
-    if not sent:
-        raise HTTPException(status_code=500, detail="Failed to send OTP email. Check your email provider config.")
+    background_tasks.add_task(_send_otp_email, email, otp, "Password Reset")
     return {"status": "otp_sent", "message": f"OTP sent to {email}"}
 
 
@@ -306,16 +304,14 @@ async def get_profile_photo(user_id: str):
 # ── OTP-based passwordless login ──────────────────────────────────────────────
 
 @router.post("/login_otp/send")
-async def login_otp_send(email: str):
+async def login_otp_send(email: str, background_tasks: BackgroundTasks):
     """Check account exists, send a 6-digit OTP to email for passwordless login."""
     user = await users_collection.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=404, detail="No account found with this email.")
     otp = str(random.randint(100000, 999999))
     _login_otp_store[email] = {"otp": otp, "expires": time.time() + 600}
-    sent = _send_otp_email(email, otp, purpose="Login Verification")
-    if not sent:
-        raise HTTPException(status_code=500, detail="Failed to send OTP. Check your email provider config.")
+    background_tasks.add_task(_send_otp_email, email, otp, "Login Verification")
     return {"status": "otp_sent", "message": f"OTP sent to {email}"}
 
 
