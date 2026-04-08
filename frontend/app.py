@@ -198,14 +198,14 @@ div[data-testid="stVerticalBlock"] > div:has(.export-report-anchor) + div [data-
     pointer-events: none;
     transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-#twin-nav-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+#twin-nav-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 
 #twin-nav-panel .nav-section-label {
     font-size: 11px; font-weight: 800; color: #475569;
     letter-spacing: 1.5px; text-transform: uppercase;
     padding: 6px 12px 8px 12px;
 }
-#twin-nav-panel button.nav-item {
+#twin-nav-panel button.twin-nav-item {
     display: flex; align-items: center; gap: 12px;
     width: 100%; background: transparent; border: none;
     border-radius: 10px; padding: 10px 14px;
@@ -213,32 +213,42 @@ div[data-testid="stVerticalBlock"] > div:has(.export-report-anchor) + div [data-
     font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: left;
     transition: all 0.2s ease;
 }
-#twin-nav-panel button.nav-item:hover { 
+#twin-nav-panel button.twin-nav-item:hover { 
     background: rgba(56,189,248,0.12); 
     color: #f1f5f9;
     transform: translateX(6px);
 }
-#twin-nav-panel button.nav-item.active { 
+#twin-nav-panel button.twin-nav-item.active { 
     background: linear-gradient(90deg, rgba(56,189,248,0.2), transparent);
     color: #38bdf8; 
     border-left: 3px solid #38bdf8;
     padding-left: 11px;
 }
-#twin-nav-panel button.nav-item .nav-icon { 
+#twin-nav-panel button.twin-nav-item .nav-icon { 
     font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; 
     transition: transform 0.2s ease;
 }
-#twin-nav-panel button.nav-item:hover .nav-icon {
+#twin-nav-panel button.twin-nav-item:hover .nav-icon {
     transform: scale(1.2);
 }
 
 /* Hide only the clickable tab buttons (Conversation, Brain Explorer, etc.) 
    while keeping the screen content completely visible */
 button[role="tab"] {
-    display: none !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    pointer-events: auto !important;
 }
 [data-testid="stTabBar"] {
-    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 [data-baseweb="tab-list"], [data-baseweb="tab-border"] {
     border-color: transparent !important;
@@ -942,7 +952,7 @@ def _inject_nav_menu(active_tab="chat"):
                 #twin-nav-panel.open {{ 
                     opacity: 1; 
                     transform: translate(0, 0) scale(1) rotate(0deg); 
-                    pointer-events: all; 
+                    pointer-events: auto; 
                 }}
                 
                 /* Closing state: glides out diagonally towards bottom */
