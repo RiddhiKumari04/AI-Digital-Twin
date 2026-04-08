@@ -19,6 +19,8 @@ import time
 import urllib.request
 import urllib.parse
 import json as _json
+import traceback
+import logging
 
 import httpx
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -128,7 +130,8 @@ def _send_via_resend(to_email: str, otp: str, purpose: str) -> bool:
             print(f"[EMAIL/Resend] {'✓ Sent' if ok else '✗ Failed'} to {to_email} (status {resp.status})")
             return ok
     except Exception as e:
-        print(f"[EMAIL/Resend] Error: {e}")
+        print(f"[EMAIL/Resend] Error sending to {to_email}: {e}")
+        traceback.print_exc()
         return False
 
 
@@ -164,7 +167,8 @@ def _send_via_smtp(to_email: str, otp: str, purpose: str) -> bool:
         print(f"[EMAIL/SMTP-TLS] ✓ Sent to {to_email}")
         return True
     except Exception as e2:
-        print(f"[EMAIL/SMTP-TLS] Failed ({e2})")
+        print(f"[EMAIL/SMTP-TLS] Failed to {to_email} ({e2})")
+        traceback.print_exc()
         return False
 
 
@@ -173,11 +177,19 @@ def _send_otp_email(to_email: str, otp: str, purpose: str = "OTP Verification") 
     Universal OTP sender — tries Brevo → Resend → SMTP in order.
     If none configured, prints to terminal (dev mode).
     """
+    # LOGGING: Print the OTP to console so user can see it in Render logs
+    print(f"\n[DEBUG/OTP] Target: {to_email} | Purpose: {purpose} | Code: {otp}\n")
+
+    # Try SMTP first (usually more reliable than test-domain Resend)
+    if _send_via_smtp(to_email, otp, purpose):
+        return True
+    
+    # Try Brevo
     if _send_via_brevo(to_email, otp, purpose):
         return True
+        
+    # Try Resend
     if _send_via_resend(to_email, otp, purpose):
-        return True
-    if _send_via_smtp(to_email, otp, purpose):
         return True
 
     # No provider configured — DEV MODE: print to terminal
