@@ -84,6 +84,47 @@ HTML_CONTENT = """
         .card:nth-child(1) { animation-delay: 0.1s; }
         .card:nth-child(2) { animation-delay: 0.15s; }
         .card:nth-child(3) { animation-delay: 0.2s; }
+
+        /* API Status Badge */
+        .status-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 16px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            margin-top: 20px;
+        }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #94a3b8;
+            position: relative;
+        }
+        .status-dot.active {
+            background: #34d399;
+            box-shadow: 0 0 12px #34d399;
+        }
+        .status-dot.active::after {
+            content: '';
+            position: absolute; inset: -4px;
+            border-radius: 50%;
+            border: 2px solid #34d399;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+        #status-text { font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
+        .test-btn {
+            background: transparent; border: none; color: var(--accent);
+            font-family: inherit; font-size: 0.75rem; font-weight: 800;
+            text-transform: uppercase; cursor: pointer; letter-spacing: 1px;
+            padding: 4px 8px; border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .test-btn:hover { background: rgba(56, 189, 248, 0.1); }
     </style>
 </head>
 <body>
@@ -92,6 +133,12 @@ HTML_CONTENT = """
         <header>
             <h1>TwinX API Docs</h1>
             <p>A premium gateway to your AI Digital Twin. Explore the neural network endpoints.</p>
+            
+            <div class="status-container">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="status-text">Checking API Link...</span>
+                <button class="test-btn" onclick="checkStatus()">Test Status</button>
+            </div>
         </header>
 
         <!-- Authentication -->
@@ -166,9 +213,37 @@ HTML_CONTENT = """
         </div>
 
         <footer>
-            <p>&copy; 2026 AI Digital Twin Project &bull; Built with FastAPI & Sonnet</p>
+            <p>&copy; 2026 AI Digital Twin Project &bull; Built with FastAPI</p>
         </footer>
     </div>
+
+    <script>
+        async function checkStatus() {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            text.innerText = 'Ping signaling...';
+            dot.classList.remove('active');
+            
+            try {
+                const t0 = performance.now();
+                const resp = await fetch('/health/ping');
+                const t1 = performance.now();
+                
+                if (resp.ok) {
+                    dot.classList.add('active');
+                    text.innerHTML = `<span style="color:#34d399">API Online (${resp.status} OK)</span> — ${Math.round(t1-t0)}ms`;
+                } else {
+                    text.innerHTML = `<span style="color:#f87171">API Error (${resp.status})</span>`;
+                }
+            } catch (err) {
+                text.innerHTML = `<span style="color:#f87171">Offline / Connection Failed</span>`;
+            }
+        }
+        
+        // Initial check
+        window.addEventListener('load', checkStatus);
+    </script>
 </body>
 </html>
 """

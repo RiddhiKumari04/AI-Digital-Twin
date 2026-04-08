@@ -65,7 +65,7 @@ header[data-testid="stHeader"] { background: transparent !important; z-index: 10
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    z-index: 99999 !important;
+    z-index: 9999999 !important;
     background: #1e3a5f !important;
     border: 1.5px solid #38bdf8 !important;
     border-left: none !important;
@@ -80,19 +80,24 @@ header[data-testid="stHeader"] { background: transparent !important; z-index: 10
 [data-testid="stSidebar"] {
     background: #0d1829 !important;
     border-right: 1px solid rgba(56,189,248,0.15) !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: none !important;
-    left: 0 !important;
-    position: relative !important;
-    min-width: 260px !important;
-    width: 260px !important;
-    max-width: 320px !important;
+    z-index: 1000 !important;
 }
+
 [data-testid="stSidebar"] * {
     visibility: visible !important;
 }
+
+[data-testid="stSidebar"] [data-testid="stBaseButton-headerNoPadding"],
+[data-testid="stSidebar"] button[kind="header"] {
+    color: #38bdf8 !important;
+    z-index: 1001 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stBaseButton-headerNoPadding"] svg,
+[data-testid="stSidebar"] button[kind="header"] svg {
+    fill: #38bdf8 !important;
+}
+
 header[data-testid="stHeader"] button[kind="header"] { display: inline-flex !important; }
 /* Allow sidebar toggle but hide other clutter */
 [data-testid="stAppDeployButton"], [data-testid="stToolbar"], [data-testid="stDecoration"], 
@@ -877,6 +882,99 @@ def render_diff_html(diff_text):
         else:
             out.append(line)
     return "\n".join(out)
+
+
+def _inject_left_sidebar_arrow_toggle():
+    components.html("""
+    <script>
+    (function() {
+        const p = window.parent.document;
+
+        if (!p.getElementById('twin-left-arrow-style')) {
+            const style = p.createElement('style');
+            style.id = 'twin-left-arrow-style';
+            style.textContent = `
+                /* Keep native controls available for programmatic click only */
+                [data-testid="collapsedControl"],
+                [data-testid="stSidebar"] [data-testid="stBaseButton-headerNoPadding"],
+                [data-testid="stSidebar"] button[kind="header"] {
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                }
+                #twin-left-arrow-toggle {
+                    position: fixed;
+                    top: 12px;
+                    left: 12px;
+                    z-index: 1000003;
+                    width: 42px;
+                    height: 42px;
+                    border: 1.5px solid #38bdf8;
+                    border-radius: 10px;
+                    background: #1e3a5f;
+                    color: #38bdf8;
+                    font-size: 22px;
+                    font-weight: 700;
+                    line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    box-shadow: 2px 0 10px rgba(56,189,248,0.25);
+                    transition: transform 0.15s ease, background 0.15s ease;
+                }
+                #twin-left-arrow-toggle:hover {
+                    transform: scale(1.04);
+                    background: #0f2742;
+                }
+            `;
+            p.head.appendChild(style);
+        }
+
+        if (!p.getElementById('twin-left-arrow-toggle')) {
+            const btn = p.createElement('button');
+            btn.id = 'twin-left-arrow-toggle';
+            btn.type = 'button';
+            btn.setAttribute('aria-label', 'Toggle sidebar');
+            p.body.appendChild(btn);
+        }
+
+        const btn = p.getElementById('twin-left-arrow-toggle');
+        if (!btn) return;
+
+        const getButtons = () => {
+            const closeBtn =
+                p.querySelector('[data-testid="stSidebar"] [data-testid="stBaseButton-headerNoPadding"]') ||
+                p.querySelector('[data-testid="stSidebar"] button[kind="header"]');
+            const openBtn = p.querySelector('[data-testid="collapsedControl"]');
+            return { openBtn, closeBtn };
+        };
+
+        const isVisible = (el) => !!(el && el.getClientRects && el.getClientRects().length > 0);
+
+        const isSidebarOpen = () => {
+            const { closeBtn } = getButtons();
+            return isVisible(closeBtn);
+        };
+
+        const refreshArrow = () => {
+            btn.textContent = isSidebarOpen() ? '«' : '»';
+        };
+
+        btn.onclick = () => {
+            const { openBtn, closeBtn } = getButtons();
+            if (isSidebarOpen() && closeBtn) {
+                closeBtn.click();
+            } else if (openBtn) {
+                openBtn.click();
+            }
+            setTimeout(refreshArrow, 150);
+        };
+
+        refreshArrow();
+        setTimeout(refreshArrow, 500);
+    })();
+    </script>
+    """, height=0)
 
 
 # ── RIGHT-SIDE FLOATING NAV MENU ─────────────────────────────────────────────
@@ -1722,6 +1820,7 @@ else:
         st.session_state["active_tab"] = "chat"
 
     _active = st.session_state["active_tab"]
+    _inject_left_sidebar_arrow_toggle()
     _inject_nav_menu(active_tab=_active)  # ── floating right-side nav menu
     _inject_floating_feedback()
 
@@ -1856,57 +1955,6 @@ else:
         if new_lang != cur_lang:
             st.session_state.language = new_lang
 
-        # ── BACKEND HEALTH STATUS ────────────────────────────────────────────
-        st.markdown("---")
-        st.markdown("**🛰 Backend Status**")
-        try:
-            _h = requests.get(f"{BACKEND_URL}/health/ping", timeout=2)
-            _h_full = requests.get(f"{BACKEND_URL}/health", timeout=6).json()
-            _overall = _h_full.get("status", "unknown")
-            _summary = _h_full.get("summary", {})
-            _services = _h_full.get("services", {})
-            _color = {"healthy": "#22c55e", "degraded": "#f59e0b", "unhealthy": "#ef4444"}.get(_overall, "#94a3b8")
-            _icon  = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}.get(_overall, "⚪")
-            st.markdown(
-                f'<div style="background:rgba(0,0,0,0.2);border:1px solid {_color}40;border-left:3px solid {_color};'
-                f'border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
-                f'<div style="color:{_color};font-size:0.85rem;font-weight:700">{_icon} {_overall.capitalize()}</div>'
-                f'<div style="color:#64748b;font-size:0.72rem;margin-top:3px">'
-                f'DB: {_summary.get("critical_services","?")} &nbsp;|&nbsp; AI: {_summary.get("ai_providers","?")}'
-                f'</div></div>',
-                unsafe_allow_html=True
-            )
-            # Per-service dots
-            _svc_icons = {
-                "mongodb": "🗄 MongoDB", "chromadb": "💾 ChromaDB",
-                "gemini": "💎 Gemini", "openrouter": "🔀 OpenRouter",
-                "groq": "⚡ Groq", "huggingface": "🤗 HuggingFace",
-                "together_ai": "🤝 Together AI", "email": "✉️ Email",
-                "google_oauth": "🔑 Google OAuth",
-            }
-            lines_html = []
-            for _svc, _label in _svc_icons.items():
-                _st = _services.get(_svc, {}).get("status", "unknown")
-                _dot = "🟢" if _st == "ok" else ("🟡" if _st in ("warning", "configured") else "🔴")
-                lines_html.append(f'<span style="font-size:0.72rem;color:#94a3b8;">{_dot} {_label}</span>')
-            st.markdown(
-                '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">' +
-                "".join(f'<span>{l}</span>' for l in lines_html) + '</div>',
-                unsafe_allow_html=True
-            )
-        except Exception:
-            st.markdown(
-                '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);'
-                'border-left:3px solid #ef4444;border-radius:10px;padding:8px 12px;'
-                'color:#f87171;font-size:0.8rem">🔴 Backend unreachable</div>',
-                unsafe_allow_html=True
-            )
-
-        st.markdown(
-            f'<a href="{BACKEND_URL}/api-docs" target="_blank" style="display:block;text-align:center;'
-            f'color:#38bdf8;font-size:0.78rem;margin-top:4px;text-decoration:none;">📖 API Documentation ↗</a>',
-            unsafe_allow_html=True
-        )
 
         st.markdown("---")
         if st.button("Logout"):
