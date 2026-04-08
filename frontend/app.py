@@ -1,5 +1,8 @@
 import streamlit as st
 import requests
+import json
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit.components.v1 as components
 from streamlit_mic_recorder import speech_to_text
 import threading
@@ -1078,11 +1081,11 @@ def _inject_nav_menu(active_tab="chat"):
         // 4. Update panel items
         const inner = p.getElementById('twin-nav-content');
         if(inner) {{
-            inner.innerHTML = {repr(btns_html)};
+            inner.innerHTML = {json.dumps(btns_html)};
         }}
     }})();
     """
-    components.html(f"<script>{injection_js}</script>", height=0)
+    components.html("<script>" + injection_js + "</script>", height=0)
 
 
 def _inject_floating_feedback():
