@@ -8,15 +8,25 @@
 <br/><br/>
 
 
+
 # TwinX — AI Digital Twin
 
 ### *Your AI self, always on.*
 
 > A digital twin that knows your style, your code, your people — and grows smarter every day.
 
-<br/>
+
 
 ---
+
+### 🌐 [Live Demo](https://twinx-ai.streamlit.app/) &nbsp;&nbsp;
+
+---
+
+</div>
+
+<br/>
+
 
 </div>
 
