@@ -13,7 +13,7 @@
 
 ### *Your AI self, always on.*
 
-> A digital twin that knows your style, your code, your people — and grows smarter every day.
+ A digital twin that knows your style, your code, your people — and grows smarter every day.
 
 
 
